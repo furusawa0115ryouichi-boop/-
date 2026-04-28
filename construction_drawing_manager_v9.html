@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; background: #f0f4f8; color: #1a202c; font-size: 13px; }
+.header { background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%); color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+.title-wrap { display: flex; align-items: center; gap: 8px; }
+.header h1 { font-size: 17px; font-weight: 700; }
+.header-sub { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+.edit-title-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
+.edit-title-btn:hover { background: rgba(255,255,255,0.25); }
+.title-input { font-size: 17px; font-weight: 700; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.5); border-radius: 6px; color: white; padding: 3px 10px; outline: none; width: 300px; }
+
+/* 保存ステータスバー */
+.save-bar { background: #f0fff4; border-bottom: 1px solid #9ae6b4; padding: 5px 16px; font-size: 11px; color: #276749; display: flex; align-items: center; gap: 8px; min-height: 28px; transition: background 0.3s; }
+.save-bar.saving { background: #fffbeb; border-color: #f6e05e; color: #744210; }
+.save-bar.error  { background: #fff5f5; border-color: #feb2b2; color: #822727; }
+.save-dot { width: 7px; height: 7px; border-radius: 50%; background: #38a169; flex-shrink: 0; }
+.save-bar.saving .save-dot { background: #d69e2e; animation: blink .8s infinite; }
+.save-bar.error  .save-dot { background: #e53e3e; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+.toolbar { background: white; padding: 10px 16px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+.btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; }
+.btn-primary { background: #2d6a9f; color: white; } .btn-primary:hover { background: #1e3a5f; }
+.btn-danger  { background: #e53e3e; color: white; } .btn-danger:hover  { background: #c53030; }
+.btn-secondary { background: #edf2f7; color: #4a5568; border: 1px solid #cbd5e0; } .btn-secondary:hover { background: #e2e8f0; }
+.btn-edit  { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; } .btn-edit:hover  { background: #bee3f8; }
+.btn-tpl   { background: #faf5ff; color: #553c9a; border: 1px solid #d6bcfa; } .btn-tpl:hover   { background: #e9d8fd; }
+.btn-print { background: #553c9a; color: white; } .btn-print:hover { background: #44337a; }
+.btn-sm { padding: 3px 7px; font-size: 10px; }
+select, input[type=text], input[type=number], input[type=date] { padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 12px; outline: none; }
+select:focus, input:focus { border-color: #2d6a9f; }
+.spacer { flex: 1; }
+
+.legend { display: flex; gap: 12px; padding: 7px 16px; background: #f7fafc; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; align-items: center; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #4a5568; }
+.dot { width: 11px; height: 11px; border-radius: 3px; }
+.days-badge { display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.days-red{background:#fed7d7;color:#822727} .days-orange{background:#feebc8;color:#7b341e} .days-green{background:#c6f6d5;color:#22543d}
+.submitted-badge { display:inline-block;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:700;background:#e2e8f0;color:#4a5568; }
+
+.table-wrap { overflow-x: auto; padding: 12px 16px; }
+table { width:100%;border-collapse:separate;border-spacing:0;background:white;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);min-width:1280px; }
+thead tr { background: #2d6a9f; color: white; }
+.th-group { background: #1e3a5f; }
+thead th { padding:9px 7px;text-align:center;font-size:11px;font-weight:600;white-space:nowrap;border-right:1px solid rgba(255,255,255,.15); }
+thead th:last-child { border-right:none; }
+tbody tr { border-bottom:1px solid #e8edf3;transition:background .12s; }
+tbody tr:hover { background:#f0f6ff; }
+td { padding:7px 6px;text-align:center;vertical-align:middle;border-right:1px solid #edf2f7; }
+td:last-child { border-right:none; }
+.td-left { text-align:left; }
+.site-label { font-size:10px;font-weight:700;color:#2d6a9f;background:#ebf8ff;border-radius:4px;padding:2px 6px;white-space:nowrap;display:inline-block; }
+.drawing-name { font-size:12px;color:#2d3748;font-weight:700; }
+.row-group-header td { background:#edf2f7;font-weight:700;color:#2d3748;font-size:11px;padding:6px 10px; }
+.drag-handle { cursor:grab;color:#cbd5e0;font-size:14px;padding:0 4px;user-select:none;display:inline-block; }
+.drag-handle:hover { color:#718096; }
+tr.drag-over td { border-top:3px solid #2d6a9f !important;background:#ebf8ff !important; }
+tr.dragging { opacity:.4; }
+
+.status-badge { display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border-radius:12px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;border:none;transition:all .15s; }
+.s-done{background:#c6f6d5;color:#276749} .s-done:hover{background:#9ae6b4}
+.s-wip {background:#fefcbf;color:#744210} .s-wip:hover {background:#faf089}
+.s-none{background:#fed7d7;color:#822727} .s-none:hover{background:#feb2b2}
+.s-skip{background:#e2e8f0;color:#718096}
+.rev-yes {background:#feebc8;color:#7b341e} .rev-yes:hover {background:#fbd38d}
+.rev-no  {background:#c6f6d5;color:#276749} .rev-no:hover  {background:#9ae6b4}
+.rev-none{background:#e2e8f0;color:#718096} .rev-none:hover{background:#cbd5e0}
+
+.deadline-cell { font-size:11px;font-weight:600; }
+.dl-urgent{color:#c53030} .dl-soon{color:#c05621} .dl-ok{color:#276749}
+.dl-overdue{color:#822727;background:#fff5f5;border-radius:4px;padding:1px 4px}
+.type-badge{border-radius:10px;padding:2px 7px;font-size:10px;white-space:nowrap}
+.type-ventilation{background:#e9d8fd;color:#553c9a} .type-arch{background:#bee3f8;color:#2c5282}
+.type-struct{background:#fbd38d;color:#7b341e}    .type-elec{background:#faf089;color:#744210}
+.type-plumb{background:#c6f6d5;color:#276749}     .type-hvac{background:#fed7d7;color:#822727}
+.type-ext{background:#e2e8f0;color:#4a5568}       .type-other{background:#f7fafc;color:#718096}
+.inline-date{font-size:10px;border-radius:5px;padding:2px 6px;cursor:pointer;border:1px solid transparent}
+.inline-date:hover{border-color:#2d6a9f;background:#ebf8ff}
+.date-set{color:#276749;background:#f0fff4;border-color:#9ae6b4 !important}
+.date-empty{color:#a0aec0}
+
+.summary-bar { display:flex;gap:10px;padding:10px 16px;background:white;border-bottom:1px solid #e2e8f0;flex-wrap:wrap; }
+.summary-card { background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 12px;text-align:center;min-width:75px; }
+.summary-card .num { font-size:19px;font-weight:800;color:#2d6a9f; }
+.summary-card .lbl { font-size:10px;color:#718096;margin-top:1px; }
+.urgent-num { color:#e53e3e !important; }
+
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:white;border-radius:12px;padding:22px;width:480px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.modal h2 { font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:14px; }
+.modal-edit h2{color:#2b6cb0} .modal-tpl h2{color:#553c9a} .modal-danger h2{color:#c53030}
+.form-group{margin-bottom:10px}
+.form-group label{display:block;font-size:11px;font-weight:600;color:#4a5568;margin-bottom:3px}
+.form-group input,.form-group select{width:100%;padding:7px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.section-label{font-size:11px;font-weight:700;color:#2d6a9f;border-bottom:1px solid #bee3f8;padding-bottom:4px;margin:12px 0 8px}
+.warn-box{background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:#742a2a;line-height:1.6}
+.warn-box strong{display:block;margin-bottom:4px}
+.edit-badge{display:inline-block;background:#ebf8ff;color:#2b6cb0;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600;margin-bottom:8px}
+.tpl-list{border:1px solid #e2e8f0;border-radius:8px;max-height:320px;overflow-y:auto}
+.tpl-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #e2e8f0}
+.tpl-item:last-child{border-bottom:none} .tpl-item:hover{background:#f7fafc}
+.tpl-drag{cursor:grab;color:#cbd5e0;font-size:14px;user-select:none} .tpl-drag:hover{color:#718096}
+.tpl-name{flex:1;font-size:12px;font-weight:600;color:#2d3748}
+.tpl-type{font-size:10px;color:#718096} .tpl-lead{font-size:10px;color:#a0aec0;margin-right:4px}
+.tpl-item.tpl-drag-over{border-top:2px solid #553c9a} .tpl-item.tpl-dragging{opacity:.4}
+.tpl-add-row{display:grid;grid-template-columns:1fr 110px 70px auto;gap:6px;margin-bottom:10px;align-items:center}
+.tpl-add-row input,.tpl-add-row select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px}
+.site-manage-list{max-height:280px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px}
+.site-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid #e2e8f0}
+.site-item:last-child{border-bottom:none} .site-item:hover{background:#f7fafc}
+.site-item-name{font-size:13px;font-weight:600;color:#2d3748}
+.site-item-count{font-size:10px;color:#718096;margin-top:1px}
+.site-rename-input{font-size:12px;border:1px solid #2d6a9f;border-radius:5px;padding:4px 7px;outline:none;width:150px}
+.tpl-hint{font-size:11px;color:#718096;background:#faf5ff;border:1px solid #d6bcfa;border-radius:6px;padding:8px 12px;margin-bottom:10px}
+
+/* Loading overlay */
+#loading-screen { position:fixed;inset:0;background:#f0f4f8;z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px; }
+.loading-spinner { width:36px;height:36px;border:4px solid #bee3f8;border-top-color:#2d6a9f;border-radius:50%;animation:spin .8s linear infinite; }
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text { font-size:13px;color:#4a5568; }
+
+.print-header{display:none}
+@media print {
+  body{background:white !important;font-size:10px !important}
+  .no-print{display:none !important}
+  .print-header{display:block !important;margin-bottom:14px;border-bottom:2px solid #2d6a9f;padding-bottom:10px}
+  .print-header h1{font-size:16px;font-weight:700;color:#1e3a5f}
+  .print-header .print-meta{font-size:10px;color:#718096;margin-top:3px}
+  .print-header .print-stats{display:flex;gap:18px;margin-top:6px}
+  .print-header .print-stat{font-size:10px;color:#4a5568}
+  .print-header .print-stat span{font-weight:700;color:#1e3a5f}
+  .table-wrap{padding:0 !important;overflow:visible !important}
+  table{box-shadow:none !important;border-radius:0 !important;min-width:unset !important;width:100% !important;border-collapse:collapse !important}
+  thead tr{background:#2d6a9f !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .th-group{background:#1e3a5f !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  thead th{font-size:8px !important;padding:5px 4px !important;color:white !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  td{font-size:8px !important;padding:5px 4px !important}
+  .status-badge,.rev-yes,.rev-no,.rev-none{font-size:8px !important;padding:2px 4px !important;pointer-events:none !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .type-badge{font-size:7px !important;padding:1px 4px !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .days-badge,.submitted-badge{font-size:7px !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .row-group-header td{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9px !important}
+  .site-label{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:8px !important;padding:1px 4px !important}
+  .inline-date{pointer-events:none !important;border:none !important}
+  .date-set{background:transparent !important}
+  .date-empty::after{content:'－';font-size:8px;color:#a0aec0}
+  .date-empty{font-size:0 !important}
+  .drag-handle{display:none !important}
+  @page{margin:10mm;size:A3 landscape}
+}
+</style>
+</head>
+<body>
+
+<!-- ローディング画面 -->
+<div id="loading-screen">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">データを読み込み中...</div>
+</div>
+
+<div id="app" style="display:none">
+
+<div class="print-header" id="print-header">
+  <h1 id="print-title-text"></h1>
+  <div class="print-meta" id="print-meta"></div>
+  <div class="print-stats" id="print-stats"></div>
+</div>
+
+<div class="header no-print">
+  <div>
+    <div class="header-sub">施工図管理システム</div>
+    <div class="title-wrap">
+      <h1 id="main-title">📐 施工図 進捗・承認管理表</h1>
+      <button class="edit-title-btn" onclick="startEditTitle()" id="title-edit-btn">✏️ 編集</button>
+      <input class="title-input" id="title-input" style="display:none"
+        onblur="finishEditTitle()"
+        onkeydown="if(event.key==='Enter')finishEditTitle();if(event.key==='Escape')cancelEditTitle()">
+    </div>
+  </div>
+  <div style="font-size:11px;opacity:0.8;" id="today-label"></div>
+</div>
+
+<!-- 保存ステータスバー -->
+<div class="save-bar no-print" id="save-bar">
+  <div class="save-dot" id="save-dot"></div>
+  <span id="save-label">データを読み込みました</span>
+  <div class="spacer"></div>
+  <span id="save-time" style="color:#38a169;font-size:10px"></span>
+</div>
+
+<div class="summary-bar no-print" id="summary-bar"></div>
+
+<div class="toolbar no-print">
+  <button class="btn btn-primary" onclick="openAddModal()">＋ 図面追加</button>
+  <button class="btn btn-secondary" onclick="openSiteManageModal()">🏗 現場管理</button>
+  <button class="btn btn-tpl" onclick="openTplModal()">📋 図面テンプレート</button>
+  <select id="filter-site" onchange="render()"><option value="">全現場</option></select>
+  <select id="filter-status" onchange="render()">
+    <option value="">全ステータス</option>
+    <option value="urgent">⚠ 期限迫る（7日以内）</option>
+    <option value="not-created">未作成</option>
+    <option value="not-approved">作成済・未承認</option>
+    <option value="revision">修正あり</option>
+    <option value="done">承認済</option>
+  </select>
+  <select id="filter-type" onchange="render()">
+    <option value="">全種別</option>
+    <option>建築</option><option>構造</option><option>設備（電気）</option>
+    <option>設備（給排水）</option><option>設備（空調）</option><option>換気工事</option><option>外構</option><option>その他</option>
+  </select>
+  <div class="spacer"></div>
+  <button class="btn btn-print" onclick="doPrint()">🖨 PDF印刷</button>
+  <button class="btn btn-secondary" onclick="exportCSV()">📥 CSV出力</button>
+</div>
+
+<div class="legend no-print">
+  <div class="legend-item"><div class="dot" style="background:#c6f6d5"></div>承認済</div>
+  <div class="legend-item"><div class="dot" style="background:#fefcbf"></div>承認待ち</div>
+  <div class="legend-item"><div class="dot" style="background:#fed7d7"></div>未作成</div>
+  <div class="legend-item"><div class="dot" style="background:#feebc8"></div>修正あり</div>
+  <span style="color:#e2e8f0;margin:0 4px">|</span>
+  <div class="legend-item"><span class="submitted-badge">提出済</span> 実提出日入力後は残日数非表示</div>
+  <div class="legend-item"><span style="font-size:11px;color:#718096">⠿ ドラッグで並び替え</span></div>
+</div>
+
+<div class="table-wrap">
+  <table id="main-table">
+    <thead>
+      <tr class="th-group">
+        <th style="width:28px" class="no-print"></th>
+        <th colspan="3" style="border-right:1px solid rgba(255,255,255,.2)">基本情報</th>
+        <th colspan="2" style="border-right:1px solid rgba(255,255,255,.2)">進捗状況</th>
+        <th colspan="3" style="border-right:1px solid rgba(255,255,255,.2)">初回提出</th>
+        <th colspan="3" style="border-right:1px solid rgba(255,255,255,.2)">修正対応</th>
+        <th class="no-print"></th>
+      </tr>
+      <tr>
+        <th style="width:28px" class="no-print">⠿</th>
+        <th style="min-width:105px">現場名</th>
+        <th style="min-width:115px">図面名</th>
+        <th style="min-width:72px">種別</th>
+        <th style="min-width:70px">作成状況</th>
+        <th style="min-width:70px">承認状況</th>
+        <th style="min-width:85px">提出期限</th>
+        <th style="min-width:55px">残日数</th>
+        <th style="min-width:85px">実提出日</th>
+        <th style="min-width:70px">修正の有無</th>
+        <th style="min-width:85px">修正図期限</th>
+        <th style="min-width:85px">修正図提出日</th>
+        <th style="min-width:80px" class="no-print">操作</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<!-- Drawing Add/Edit Modal -->
+<div class="modal-overlay no-print" id="modal-drawing">
+  <div class="modal modal-edit">
+    <h2 id="modal-drawing-title">📋 図面を追加</h2>
+    <div id="edit-badge-wrap"></div>
+    <div class="section-label">基本情報</div>
+    <div class="form-group"><label>現場名 *</label><select id="f-site"></select></div>
+    <div class="form-row">
+      <div class="form-group"><label>図面名 *</label><input type="text" id="f-name" placeholder="例：1F平面図"></div>
+      <div class="form-group"><label>図面種別</label>
+        <select id="f-type"><option>建築</option><option>構造</option><option>設備（電気）</option><option>設備（給排水）</option><option>設備（空調）</option><option>換気工事</option><option>外構</option><option>その他</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>担当者</label><input type="text" id="f-person" placeholder="氏名"></div>
+      <div class="form-group"><label>作成リードタイム（日）</label><input type="number" id="f-lead" value="7" min="1" max="60"></div>
+    </div>
+    <div class="section-label">進捗状況</div>
+    <div class="form-row">
+      <div class="form-group"><label>作成状況</label>
+        <select id="f-created"><option value="none">未作成</option><option value="wip">作成中</option><option value="done">作成済</option></select>
+      </div>
+      <div class="form-group"><label>承認状況</label>
+        <select id="f-approved"><option value="none">未承認</option><option value="done">承認済</option><option value="skip">対象外</option></select>
+      </div>
+    </div>
+    <div class="section-label">初回提出</div>
+    <div class="form-row">
+      <div class="form-group"><label>提出期限</label><input type="date" id="f-deadline"></div>
+      <div class="form-group"><label>実提出日</label><input type="date" id="f-submitted"></div>
+    </div>
+    <div class="section-label">修正対応</div>
+    <div class="form-group"><label>修正の有無</label>
+      <select id="f-revision"><option value="none">未確認</option><option value="yes">修正あり</option><option value="no">修正なし</option></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>修正図 提出期限</label><input type="date" id="f-rev-deadline"></div>
+      <div class="form-group"><label>修正図 実提出日</label><input type="date" id="f-rev-submitted"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-drawing')">キャンセル</button>
+      <button class="btn btn-primary" id="modal-drawing-submit" onclick="submitDrawing()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template Modal -->
+<div class="modal-overlay no-print" id="modal-tpl">
+  <div class="modal modal-tpl" style="width:540px">
+    <h2>📋 図面テンプレート管理</h2>
+    <div class="tpl-hint">ここで登録した図面は、新しい現場を追加するときに自動でセットされます。ドラッグ（⠿）で順番も変更できます。</div>
+    <div class="tpl-add-row">
+      <input type="text" id="tpl-new-name" placeholder="図面名（例：1F平面図）">
+      <select id="tpl-new-type"><option>建築</option><option>構造</option><option>設備（電気）</option><option>設備（給排水）</option><option>設備（空調）</option><option>換気工事</option><option>外構</option><option>その他</option></select>
+      <input type="number" id="tpl-new-lead" value="7" min="1" max="60" placeholder="日数">
+      <button class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="addTplItem()">追加</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 110px 55px 1fr;gap:4px;padding:0 12px 6px;font-size:10px;color:#718096;font-weight:600">
+      <span>図面名</span><span>種別</span><span>リード</span><span></span>
+    </div>
+    <div class="tpl-list" id="tpl-list"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('modal-tpl')">閉じる</button></div>
+  </div>
+</div>
+
+<!-- Template Edit Modal -->
+<div class="modal-overlay no-print" id="modal-tpl-edit">
+  <div class="modal modal-tpl" style="width:380px">
+    <h2>✏️ テンプレート図面を編集</h2>
+    <div class="form-group"><label>図面名 *</label><input type="text" id="te-name"></div>
+    <div class="form-row">
+      <div class="form-group"><label>種別</label>
+        <select id="te-type"><option>建築</option><option>構造</option><option>設備（電気）</option><option>設備（給排水）</option><option>設備（空調）</option><option>換気工事</option><option>外構</option><option>その他</option></select>
+      </div>
+      <div class="form-group"><label>リードタイム（日）</label><input type="number" id="te-lead" min="1" max="60"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tpl-edit');openTplModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveTplEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Site Manage Modal -->
+<div class="modal-overlay no-print" id="modal-site-manage">
+  <div class="modal" style="width:480px">
+    <h2>🏗 現場管理</h2>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <input type="text" id="f-new-sitename" placeholder="新しい現場名を入力" style="flex:1;padding:7px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:13px">
+      <button class="btn btn-primary" onclick="addSiteInline()">追加</button>
+    </div>
+    <div style="font-size:11px;color:#718096;margin-bottom:10px;padding-left:2px">※ テンプレートに図面が登録されている場合、自動で図面が追加されます</div>
+    <div class="site-manage-list" id="site-manage-list"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('modal-site-manage')">閉じる</button></div>
+  </div>
+</div>
+
+<!-- Delete Site Modal -->
+<div class="modal-overlay modal-danger no-print" id="modal-delete-site">
+  <div class="modal">
+    <h2>🗑 現場を削除</h2>
+    <div class="warn-box">
+      <strong>⚠️ 削除の確認</strong>
+      「<span id="delete-site-name"></span>」を削除しますか？<br>
+      この現場に登録されている <strong id="delete-site-count"></strong> 件の図面もすべて削除されます。<br>
+      この操作は取り消せません。
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-site')">キャンセル</button>
+      <button class="btn btn-danger" onclick="confirmDeleteSite()">削除する</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+let appTitle = '📐 施工図 進捗・承認管理表';
+let titleEditPrev = '';
+let pendingDeleteSite = null;
+let editingId = null;
+let editingTplIdx = null;
+let saveTimer = null;
+
+// デフォルトデータ
+const DEFAULT_SITES = ['A現場（△△マンション）','B現場（○○倉庫）','C現場（□□オフィス）'];
+const DEFAULT_TPL = [
+  {name:'配置図',type:'建築',lead:5},{name:'平面図',type:'建築',lead:5},
+  {name:'立面図',type:'建築',lead:5},{name:'断面図',type:'建築',lead:5},
+  {name:'基礎伏図',type:'構造',lead:7},{name:'電気設備図',type:'設備（電気）',lead:5},
+  {name:'給排水設備図',type:'設備（給排水）',lead:6},{name:'換気設備図',type:'換気工事',lead:6},
+];
+const DEFAULT_DRAWINGS = [
+  {id:1,site:'A現場（△△マンション）',name:'1F平面図',type:'建築',created:'done',approved:'done',deadline:'2026-05-10',lead:5,person:'田中',submitted:'2026-04-25',revision:'no',revDeadline:'',revSubmitted:''},
+  {id:2,site:'A現場（△△マンション）',name:'2F平面図',type:'建築',created:'done',approved:'none',deadline:'2026-05-10',lead:5,person:'田中',submitted:'2026-04-25',revision:'yes',revDeadline:'2026-05-05',revSubmitted:''},
+  {id:3,site:'A現場（△△マンション）',name:'立面図（南）',type:'建築',created:'wip',approved:'none',deadline:'2026-05-08',lead:4,person:'田中',submitted:'',revision:'none',revDeadline:'',revSubmitted:''},
+  {id:4,site:'A現場（△△マンション）',name:'基礎伏図',type:'構造',created:'none',approved:'none',deadline:'2026-05-15',lead:7,person:'佐藤',submitted:'',revision:'none',revDeadline:'',revSubmitted:''},
+  {id:5,site:'A現場（△△マンション）',name:'電気設備図',type:'設備（電気）',created:'done',approved:'done',deadline:'2026-05-20',lead:5,person:'鈴木',submitted:'2026-04-20',revision:'no',revDeadline:'',revSubmitted:''},
+  {id:6,site:'A現場（△△マンション）',name:'換気設備図',type:'換気工事',created:'wip',approved:'none',deadline:'2026-05-18',lead:6,person:'鈴木',submitted:'',revision:'none',revDeadline:'',revSubmitted:''},
+  {id:7,site:'B現場（○○倉庫）',name:'配置図',type:'建築',created:'done',approved:'done',deadline:'2026-06-01',lead:3,person:'山田',submitted:'2026-04-15',revision:'yes',revDeadline:'2026-05-01',revSubmitted:'2026-04-28'},
+  {id:8,site:'B現場（○○倉庫）',name:'断面図',type:'建築',created:'none',approved:'none',deadline:'2026-05-05',lead:5,person:'山田',submitted:'',revision:'none',revDeadline:'',revSubmitted:''},
+  {id:9,site:'B現場（○○倉庫）',name:'換気ダクト図',type:'換気工事',created:'done',approved:'none',deadline:'2026-05-20',lead:6,person:'伊藤',submitted:'2026-04-22',revision:'yes',revDeadline:'2026-05-10',revSubmitted:''},
+  {id:10,site:'C現場（□□オフィス）',name:'平面詳細図',type:'建築',created:'none',approved:'none',deadline:'2026-07-10',lead:10,person:'高橋',submitted:'',revision:'none',revDeadline:'',revSubmitted:''},
+  {id:11,site:'C現場（□□オフィス）',name:'換気・空調図',type:'換気工事',created:'none',approved:'none',deadline:'2026-07-15',lead:8,person:'渡辺',submitted:'',revision:'none',revDeadline:'',revSubmitted:''},
+];
+
+let sites = [];
+let templates = [];
+let drawings = [];
+let nextId = 12;
+
+// ===== STORAGE =====
+const STORAGE_KEY = 'cdm_v9_data';
+
+async function loadData() {
+  try {
+    const result = await window.storage.get(STORAGE_KEY);
+    if (result && result.value) {
+      const d = JSON.parse(result.value);
+      sites     = d.sites     || [...DEFAULT_SITES];
+      templates = d.templates || DEFAULT_TPL.map(t=>({...t}));
+      drawings  = d.drawings  || DEFAULT_DRAWINGS.map(d=>({...d}));
+      appTitle  = d.title     || appTitle;
+      nextId    = d.nextId    || (Math.max(0,...drawings.map(x=>x.id))+1);
+      document.getElementById('main-title').textContent = appTitle;
+      setSaveState('ok','保存済みデータを読み込みました');
+    } else {
+      // 初回起動 → デフォルトデータをセット
+      sites     = [...DEFAULT_SITES];
+      templates = DEFAULT_TPL.map(t=>({...t}));
+      drawings  = DEFAULT_DRAWINGS.map(d=>({...d}));
+      await persistSave();
+      setSaveState('ok','初期データをセットしました');
+    }
+  } catch(e) {
+    // storage 未対応環境でもそのまま動作
+    sites     = [...DEFAULT_SITES];
+    templates = DEFAULT_TPL.map(t=>({...t}));
+    drawings  = DEFAULT_DRAWINGS.map(d=>({...d}));
+    setSaveState('error','自動保存に対応していない環境です（ページを閉じるとデータは消えます）');
+  }
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  updateSiteFilter();
+  render();
+}
+
+async function persistSave() {
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify({
+      sites, templates, drawings, title: appTitle, nextId
+    }));
+    const now = new Date();
+    const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    setSaveState('ok', `自動保存済み`);
+    document.getElementById('save-time').textContent = `最終保存 ${t}`;
+  } catch(e) {
+    setSaveState('error','保存に失敗しました');
+  }
+}
+
+function scheduleSave() {
+  setSaveState('saving','保存中...');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persistSave, 600);
+}
+
+function setSaveState(state, msg) {
+  const bar = document.getElementById('save-bar');
+  const dot = document.getElementById('save-dot');
+  const lbl = document.getElementById('save-label');
+  bar.className = 'save-bar no-print' + (state==='saving'?' saving':state==='error'?' error':'');
+  lbl.textContent = msg;
+}
+
+// ===== DRAG & DROP =====
+let dragSrcId=null;
+function onDragStart(e,id){dragSrcId=id;e.dataTransfer.effectAllowed='move';setTimeout(()=>{document.querySelector(`tr[data-id="${id}"]`)?.classList.add('dragging');},0);}
+function onDragOver(e,id){e.preventDefault();document.querySelectorAll('tr[data-id]').forEach(r=>r.classList.remove('drag-over'));if(id!==dragSrcId)document.querySelector(`tr[data-id="${id}"]`)?.classList.add('drag-over');}
+function onDragEnd(){document.querySelectorAll('tr[data-id]').forEach(r=>{r.classList.remove('dragging');r.classList.remove('drag-over');});}
+function onDrop(e,tid){e.preventDefault();if(dragSrcId===null||dragSrcId===tid)return;const si=drawings.findIndex(d=>d.id===dragSrcId),ti=drawings.findIndex(d=>d.id===tid);if(si<0||ti<0)return;const[m]=drawings.splice(si,1);drawings.splice(ti,0,m);dragSrcId=null;render();scheduleSave();}
+
+// ===== TEMPLATE =====
+let tplDragSrc=null;
+function openTplModal(){closeModal('modal-drawing');renderTplList();document.getElementById('tpl-new-name').value='';document.getElementById('tpl-new-lead').value='7';document.getElementById('modal-tpl').classList.add('active');}
+function renderTplList(){
+  const el=document.getElementById('tpl-list');
+  if(!templates.length){el.innerHTML='<div style="padding:16px;text-align:center;color:#a0aec0;font-size:12px">テンプレートが登録されていません</div>';return;}
+  el.innerHTML=templates.map((t,i)=>`<div class="tpl-item" id="tpl-item-${i}" draggable="true" ondragstart="onTplDragStart(event,${i})" ondragover="onTplDragOver(event,${i})" ondrop="onTplDrop(event,${i})" ondragend="onTplDragEnd()">
+    <span class="tpl-drag">⠿</span><span class="tpl-name">${t.name}</span><span class="tpl-type">${t.type}</span><span class="tpl-lead">📅 ${t.lead}日</span>
+    <button class="btn btn-edit btn-sm" onclick="openTplEdit(${i})">✏️</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteTplItem(${i})">削除</button>
+  </div>`).join('');
+}
+function addTplItem(){const name=document.getElementById('tpl-new-name').value.trim();if(!name)return alert('図面名を入力してください');templates.push({name,type:document.getElementById('tpl-new-type').value,lead:parseInt(document.getElementById('tpl-new-lead').value)||7});document.getElementById('tpl-new-name').value='';renderTplList();scheduleSave();}
+function deleteTplItem(i){if(!confirm(`「${templates[i].name}」をテンプレートから削除しますか？`))return;templates.splice(i,1);renderTplList();scheduleSave();}
+function openTplEdit(i){editingTplIdx=i;document.getElementById('te-name').value=templates[i].name;document.getElementById('te-type').value=templates[i].type;document.getElementById('te-lead').value=templates[i].lead;closeModal('modal-tpl');document.getElementById('modal-tpl-edit').classList.add('active');}
+function saveTplEdit(){const name=document.getElementById('te-name').value.trim();if(!name)return alert('図面名を入力してください');templates[editingTplIdx]={name,type:document.getElementById('te-type').value,lead:parseInt(document.getElementById('te-lead').value)||7};closeModal('modal-tpl-edit');openTplModal();scheduleSave();}
+function onTplDragStart(e,i){tplDragSrc=i;e.dataTransfer.effectAllowed='move';setTimeout(()=>document.getElementById(`tpl-item-${i}`)?.classList.add('tpl-dragging'),0);}
+function onTplDragOver(e,i){e.preventDefault();document.querySelectorAll('.tpl-item').forEach(el=>el.classList.remove('tpl-drag-over'));if(i!==tplDragSrc)document.getElementById(`tpl-item-${i}`)?.classList.add('tpl-drag-over');}
+function onTplDragEnd(){document.querySelectorAll('.tpl-item').forEach(el=>{el.classList.remove('tpl-dragging');el.classList.remove('tpl-drag-over');});}
+function onTplDrop(e,ti){e.preventDefault();if(tplDragSrc===null||tplDragSrc===ti)return;const[m]=templates.splice(tplDragSrc,1);templates.splice(ti,0,m);tplDragSrc=null;renderTplList();scheduleSave();}
+
+// ===== PRINT =====
+function doPrint(){
+  document.getElementById('print-title-text').textContent=appTitle.replace(/📐 /,'');
+  document.getElementById('print-meta').textContent=`出力日：${fmtDate(TODAY)}　　現場数：${sites.length} 件　　総図面数：${drawings.length} 件`;
+  const approved=drawings.filter(d=>d.approved==='done').length;
+  document.getElementById('print-stats').innerHTML=`<div class="print-stat">承認済：<span>${approved}</span></div><div class="print-stat">承認待ち：<span>${drawings.filter(d=>d.created==='done'&&d.approved==='none').length}</span></div><div class="print-stat">未作成：<span>${drawings.filter(d=>d.created==='none').length}</span></div><div class="print-stat">修正対応中：<span>${drawings.filter(d=>d.revision==='yes'&&!d.revSubmitted).length}</span></div><div class="print-stat">換気工事：<span>${drawings.filter(d=>d.type==='換気工事').length}</span></div>`;
+  window.print();
+}
+
+// ===== TITLE =====
+function startEditTitle(){titleEditPrev=appTitle;document.getElementById('main-title').style.display='none';document.getElementById('title-edit-btn').style.display='none';const inp=document.getElementById('title-input');inp.value=appTitle;inp.style.display='';inp.focus();inp.select();}
+function finishEditTitle(){appTitle=document.getElementById('title-input').value.trim()||titleEditPrev;document.getElementById('main-title').textContent=appTitle;document.getElementById('main-title').style.display='';document.getElementById('title-edit-btn').style.display='';document.getElementById('title-input').style.display='none';scheduleSave();}
+function cancelEditTitle(){appTitle=titleEditPrev;document.getElementById('main-title').textContent=appTitle;document.getElementById('main-title').style.display='';document.getElementById('title-edit-btn').style.display='';document.getElementById('title-input').style.display='none';}
+
+// ===== UTILS =====
+function daysDiff(s){if(!s)return null;const d=new Date(s);d.setHours(0,0,0,0);return Math.round((d-TODAY)/86400000);}
+function fmtDate(v){if(!v)return null;const d=typeof v==='string'?new Date(v):v;if(isNaN(d))return null;return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;}
+function daysBadgeOrSubmitted(diff,submitted){if(submitted)return '<span class="submitted-badge">提出済</span>';if(diff===null)return '<span style="color:#a0aec0;font-size:10px">－</span>';if(diff<0)return `<span class="days-badge days-red">超過${Math.abs(diff)}日</span>`;if(diff<=7)return `<span class="days-badge days-red">残${diff}日</span>`;if(diff<=14)return `<span class="days-badge days-orange">残${diff}日</span>`;return `<span class="days-badge days-green">残${diff}日</span>`;}
+function typeBadge(t){const m={'建築':'type-arch','構造':'type-struct','設備（電気）':'type-elec','設備（給排水）':'type-plumb','設備（空調）':'type-hvac','換気工事':'type-ventilation','外構':'type-ext','その他':'type-other'};return `<span class="type-badge ${m[t]||'type-other'}">${t==='換気工事'?'🌀 ':''}${t}</span>`;}
+function statusBtn(val,field,id){const lbl={created:{done:'✅ 作成済',wip:'🔄 作成中',none:'❌ 未作成'},approved:{done:'✅ 承認済',none:'⏳ 未承認',skip:'－ 対象外'}};const cls={done:'s-done',wip:'s-wip',none:'s-none',skip:'s-skip'};const nxt={created:{done:'none',wip:'done',none:'wip'},approved:{done:'none',none:'done',skip:'skip'}};return `<button class="status-badge ${cls[val]||'s-skip'}" onclick="toggleStatus(${id},'${field}','${(nxt[field]||{})[val]||'none'}')">${(lbl[field]||{})[val]||val}</button>`;}
+function revisionBtn(val,id){const lbl={yes:'⚠ 修正あり',no:'✅ 修正なし',none:'－ 未確認'};const cls={yes:'rev-yes',no:'rev-no',none:'rev-none'};const nxt={yes:'no',no:'none',none:'yes'};return `<button class="status-badge ${cls[val]||'rev-none'}" onclick="toggleRevision(${id},'${nxt[val]||'none'}')">${lbl[val]||'－'}</button>`;}
+function toggleStatus(id,field,next){const d=drawings.find(x=>x.id===id);if(d){d[field]=next;render();scheduleSave();}}
+function toggleRevision(id,next){const d=drawings.find(x=>x.id===id);if(d){d.revision=next;render();scheduleSave();}}
+function inlineDateCell(id,field,val){const display=val?`<span class="inline-date date-set">${fmtDate(val)}</span>`:`<span class="inline-date date-empty">－</span>`;return `<div onclick="promptDate(${id},'${field}')" style="cursor:pointer" title="クリックで編集">${display}</div>`;}
+function promptDate(id,field){const d=drawings.find(x=>x.id===id);if(!d)return;const labels={submitted:'実提出日',revDeadline:'修正図提出期限',revSubmitted:'修正図実提出日'};const val=prompt(`${labels[field]||field}（YYYY-MM-DD）\n空欄でクリア`,d[field]||'');if(val===null)return;d[field]=val.trim();render();scheduleSave();}
+
+// ===== RENDER =====
+function render(){
+  const fSite=document.getElementById('filter-site').value,fStatus=document.getElementById('filter-status').value,fType=document.getElementById('filter-type').value;
+  let filtered=drawings.filter(d=>{
+    if(fSite&&d.site!==fSite)return false;
+    if(fType&&d.type!==fType)return false;
+    if(fStatus==='urgent'){const diff=daysDiff(d.deadline);return diff!==null&&diff<=7&&d.approved!=='done'&&!d.submitted;}
+    if(fStatus==='not-created')return d.created==='none';
+    if(fStatus==='not-approved')return d.created==='done'&&d.approved==='none';
+    if(fStatus==='revision')return d.revision==='yes';
+    if(fStatus==='done')return d.approved==='done';
+    return true;
+  });
+  const grouped={};filtered.forEach(d=>{(grouped[d.site]=grouped[d.site]||[]).push(d);});
+  const tbody=document.getElementById('table-body');tbody.innerHTML='';
+  if(!Object.keys(grouped).length){tbody.innerHTML='<tr><td colspan="13" style="padding:24px;color:#a0aec0;text-align:center">表示するデータがありません</td></tr>';updateSummary();return;}
+  Object.keys(grouped).forEach(site=>{
+    const hr=document.createElement('tr');hr.className='row-group-header';hr.innerHTML=`<td colspan="13">🏗 ${site}</td>`;tbody.appendChild(hr);
+    grouped[site].forEach(d=>{
+      const diff=daysDiff(d.deadline);const revDiff=daysDiff(d.revDeadline);
+      let dlClass='';if(diff!==null&&!d.submitted){if(diff<0)dlClass='dl-overdue';else if(diff<=7)dlClass='dl-urgent';else if(diff<=14)dlClass='dl-soon';else dlClass='dl-ok';}
+      const tr=document.createElement('tr');
+      tr.setAttribute('data-id',d.id);tr.setAttribute('draggable','true');
+      tr.addEventListener('dragstart',e=>onDragStart(e,d.id));
+      tr.addEventListener('dragover',e=>onDragOver(e,d.id));
+      tr.addEventListener('drop',e=>onDrop(e,d.id));
+      tr.addEventListener('dragend',onDragEnd);
+      if(d.revision==='yes'&&!d.revSubmitted)tr.style.background='#fffaf0';
+      tr.innerHTML=`
+        <td class="no-print"><span class="drag-handle" title="ドラッグで並び替え">⠿</span></td>
+        <td class="td-left"><span class="site-label">${d.site}</span></td>
+        <td class="td-left"><span class="drawing-name">${d.name}</span></td>
+        <td>${typeBadge(d.type)}</td>
+        <td>${statusBtn(d.created,'created',d.id)}</td>
+        <td>${statusBtn(d.approved,'approved',d.id)}</td>
+        <td class="deadline-cell ${dlClass}">${d.deadline?d.deadline.replace(/-/g,'/'):'<span style="color:#a0aec0">－</span>'}</td>
+        <td>${daysBadgeOrSubmitted(diff,d.submitted)}</td>
+        <td>${inlineDateCell(d.id,'submitted',d.submitted)}</td>
+        <td>${revisionBtn(d.revision,d.id)}</td>
+        <td class="deadline-cell">${d.revision==='yes'?`<div class="${revDiff!==null&&revDiff<0?'dl-overdue':revDiff!==null&&revDiff<=7?'dl-urgent':''}" onclick="promptDate(${d.id},'revDeadline')" style="cursor:pointer">${d.revDeadline?d.revDeadline.replace(/-/g,'/'):'<span style="color:#a0aec0;font-size:10px">クリックで入力</span>'}</div>`:'<span style="color:#e2e8f0">－</span>'}</td>
+        <td>${d.revision==='yes'?inlineDateCell(d.id,'revSubmitted',d.revSubmitted):'<span style="color:#e2e8f0">－</span>'}</td>
+        <td class="no-print"><div style="display:flex;gap:4px;justify-content:center">
+          <button class="btn btn-edit btn-sm" onclick="openEditModal(${d.id})">✏️ 編集</button>
+          <button class="btn btn-danger btn-sm" onclick="removeDrawing(${d.id})">削除</button>
+        </div></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+  updateSummary();
+}
+function updateSummary(){
+  const total=drawings.length,approved=drawings.filter(d=>d.approved==='done').length;
+  const waitApproval=drawings.filter(d=>d.created==='done'&&d.approved==='none').length;
+  const notCreated=drawings.filter(d=>d.created==='none').length;
+  const urgent=drawings.filter(d=>{const diff=daysDiff(d.deadline);return diff!==null&&diff<=7&&d.approved!=='done'&&!d.submitted;}).length;
+  const revPending=drawings.filter(d=>d.revision==='yes'&&!d.revSubmitted).length;
+  const overdue=drawings.filter(d=>{const diff=daysDiff(d.deadline);return diff!==null&&diff<0&&d.approved!=='done'&&!d.submitted;}).length;
+  const ventilation=drawings.filter(d=>d.type==='換気工事').length;
+  document.getElementById('summary-bar').innerHTML=`
+    <div class="summary-card"><div class="num">${total}</div><div class="lbl">総図面数</div></div>
+    <div class="summary-card"><div class="num" style="color:#38a169">${approved}</div><div class="lbl">承認済</div></div>
+    <div class="summary-card"><div class="num" style="color:#d69e2e">${waitApproval}</div><div class="lbl">承認待ち</div></div>
+    <div class="summary-card"><div class="num" style="color:#e53e3e">${notCreated}</div><div class="lbl">未作成</div></div>
+    <div class="summary-card"><div class="num" style="color:#553c9a">${ventilation}</div><div class="lbl">🌀 換気工事</div></div>
+    <div class="summary-card"><div class="num ${revPending>0?'urgent-num':''}">${revPending}</div><div class="lbl">修正対応中</div></div>
+    <div class="summary-card"><div class="num ${urgent>0?'urgent-num':''}">${urgent}</div><div class="lbl">⚠ 7日以内</div></div>
+    ${overdue>0?`<div class="summary-card" style="border-color:#fed7d7"><div class="num urgent-num">${overdue}</div><div class="lbl">🚨 期限超過</div></div>`:''}
+  `;
+}
+
+// ===== DRAWING MODAL =====
+function fillDrawingForm(d){updateSiteFilter();document.getElementById('f-site').value=d.site;document.getElementById('f-name').value=d.name;document.getElementById('f-type').value=d.type;document.getElementById('f-person').value=d.person||'';document.getElementById('f-lead').value=d.lead||7;document.getElementById('f-created').value=d.created;document.getElementById('f-approved').value=d.approved;document.getElementById('f-deadline').value=d.deadline||'';document.getElementById('f-submitted').value=d.submitted||'';document.getElementById('f-revision').value=d.revision||'none';document.getElementById('f-rev-deadline').value=d.revDeadline||'';document.getElementById('f-rev-submitted').value=d.revSubmitted||'';}
+function openAddModal(){editingId=null;fillDrawingForm({site:sites[0]||'',name:'',type:'建築',person:'',lead:7,created:'none',approved:'none',deadline:'',submitted:'',revision:'none',revDeadline:'',revSubmitted:''});document.getElementById('modal-drawing-title').textContent='📋 図面を追加';document.getElementById('modal-drawing-submit').textContent='追加する';document.getElementById('edit-badge-wrap').innerHTML='';document.getElementById('modal-drawing').classList.add('active');}
+function openEditModal(id){const d=drawings.find(x=>x.id===id);if(!d)return;editingId=id;fillDrawingForm(d);document.getElementById('modal-drawing-title').textContent='✏️ 図面を編集';document.getElementById('modal-drawing-submit').textContent='保存する';document.getElementById('edit-badge-wrap').innerHTML=`<div class="edit-badge">編集中：${d.site} ／ ${d.name}</div>`;document.getElementById('modal-drawing').classList.add('active');}
+function submitDrawing(){
+  const site=document.getElementById('f-site').value,name=document.getElementById('f-name').value.trim();
+  if(!site||!name)return alert('現場名と図面名は必須です');
+  const data={site,name,type:document.getElementById('f-type').value,created:document.getElementById('f-created').value,approved:document.getElementById('f-approved').value,deadline:document.getElementById('f-deadline').value,lead:parseInt(document.getElementById('f-lead').value)||7,person:document.getElementById('f-person').value.trim(),submitted:document.getElementById('f-submitted').value,revision:document.getElementById('f-revision').value,revDeadline:document.getElementById('f-rev-deadline').value,revSubmitted:document.getElementById('f-rev-submitted').value};
+  if(editingId!==null){const idx=drawings.findIndex(x=>x.id===editingId);if(idx>=0)drawings[idx]={...drawings[idx],...data};}
+  else{drawings.push({id:nextId++,...data});}
+  closeModal('modal-drawing');render();scheduleSave();
+}
+function removeDrawing(id){if(!confirm('この図面を削除しますか？'))return;drawings=drawings.filter(d=>d.id!==id);render();scheduleSave();}
+
+// ===== SITE MANAGE =====
+function openSiteManageModal(){renderSiteList();document.getElementById('f-new-sitename').value='';document.getElementById('modal-site-manage').classList.add('active');}
+function renderSiteList(){
+  const el=document.getElementById('site-manage-list');
+  if(!sites.length){el.innerHTML='<div style="padding:16px;text-align:center;color:#a0aec0;font-size:12px">現場が登録されていません</div>';return;}
+  el.innerHTML=sites.map((s,i)=>`<div class="site-item" id="si-${i}"><div><div class="site-item-name" id="sn-${i}">${s}</div><div class="site-item-count">図面 ${drawings.filter(d=>d.site===s).length} 件</div></div><div style="display:flex;gap:6px" id="sa-${i}"><button class="btn btn-secondary btn-sm" onclick="startRename(${i})">✏️ 変更</button><button class="btn btn-danger btn-sm" onclick="askDeleteSite('${s.replace(/'/g,"\\'")}')">🗑 削除</button></div></div>`).join('');
+}
+function startRename(i){document.getElementById(`sn-${i}`).style.display='none';document.getElementById(`sa-${i}`).innerHTML=`<input class="site-rename-input" id="ri-${i}" value="${sites[i]}"><button class="btn btn-primary btn-sm" onclick="confirmRename(${i})">保存</button><button class="btn btn-secondary btn-sm" onclick="renderSiteList()">取消</button>`;document.getElementById(`ri-${i}`).focus();}
+function confirmRename(i){const n=document.getElementById(`ri-${i}`).value.trim();if(!n)return alert('現場名を入力してください');if(sites.includes(n)&&n!==sites[i])return alert('同じ名前の現場が既に存在します');const old=sites[i];drawings.forEach(d=>{if(d.site===old)d.site=n;});sites[i]=n;updateSiteFilter();renderSiteList();render();scheduleSave();}
+function addSiteInline(){
+  const n=document.getElementById('f-new-sitename').value.trim();
+  if(!n)return alert('現場名を入力してください');
+  if(sites.includes(n))return alert('同じ名前の現場が既に存在します');
+  sites.push(n);document.getElementById('f-new-sitename').value='';
+  if(templates.length>0)templates.forEach(t=>{drawings.push({id:nextId++,site:n,name:t.name,type:t.type,lead:t.lead,created:'none',approved:'none',deadline:'',submitted:'',revision:'none',revDeadline:'',revSubmitted:'',person:''});});
+  updateSiteFilter();renderSiteList();render();scheduleSave();
+}
+function askDeleteSite(s){pendingDeleteSite=s;document.getElementById('delete-site-name').textContent=s;document.getElementById('delete-site-count').textContent=drawings.filter(d=>d.site===s).length;document.getElementById('modal-delete-site').classList.add('active');}
+function confirmDeleteSite(){if(!pendingDeleteSite)return;drawings=drawings.filter(d=>d.site!==pendingDeleteSite);sites=sites.filter(s=>s!==pendingDeleteSite);pendingDeleteSite=null;closeModal('modal-delete-site');updateSiteFilter();renderSiteList();render();scheduleSave();}
+function updateSiteFilter(){const sel=document.getElementById('filter-site');const cur=sel.value;sel.innerHTML='<option value="">全現場</option>';sites.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;if(s===cur)o.selected=true;sel.appendChild(o);});const fs=document.getElementById('f-site');if(fs){fs.innerHTML='';sites.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;fs.appendChild(o);});}}
+function closeModal(id){document.getElementById(id).classList.remove('active');}
+function exportCSV(){const h=['現場名','図面名','種別','作成状況','承認状況','提出期限','実提出日','修正の有無','修正図期限','修正図提出日','担当者'];const cm={done:'作成済',wip:'作成中',none:'未作成'},am={done:'承認済',none:'未承認',skip:'対象外'},rm={yes:'修正あり',no:'修正なし',none:'未確認'};const rows=drawings.map(d=>[d.site,d.name,d.type,cm[d.created]||'',am[d.approved]||'',d.deadline||'',d.submitted||'',rm[d.revision]||'',d.revDeadline||'',d.revSubmitted||'',d.person||''].join(','));const csv='\uFEFF'+[h.join(','),...rows].join('\n');const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='施工図管理表.csv';a.click();}
+
+document.getElementById('today-label').textContent=`本日：${fmtDate(TODAY)}`;
+loadData();
+</script>
+</body>
+</html>
