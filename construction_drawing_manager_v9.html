@@ -30,6 +30,10 @@ body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-s
 .btn-edit  { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; } .btn-edit:hover  { background: #bee3f8; }
 .btn-tpl   { background: #faf5ff; color: #553c9a; border: 1px solid #d6bcfa; } .btn-tpl:hover   { background: #e9d8fd; }
 .btn-print { background: #553c9a; color: white; } .btn-print:hover { background: #44337a; }
+.btn-tts   { background: #e6fffa; color: #234e52; border: 1px solid #81e6d9; } .btn-tts:hover { background: #b2f5ea; }
+.btn-tts.speaking { background: #e53e3e; color: white; border-color: #e53e3e; }
+#tts-rate { font-size: 12px; }
+tr.tts-reading td { background: #e6fffa !important; outline: 2px solid #38b2ac; outline-offset: -2px; }
 .btn-sm { padding: 3px 7px; font-size: 10px; }
 select, input[type=text], input[type=number], input[type=date] { padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 12px; outline: none; }
 select:focus, input:focus { border-color: #2d6a9f; }
@@ -215,6 +219,8 @@ tr.dragging { opacity:.4; }
     <option>設備（給排水）</option><option>設備（空調）</option><option>換気工事</option><option>外構</option><option>その他</option>
   </select>
   <div class="spacer"></div>
+  <button class="btn btn-tts" id="tts-btn" onclick="toggleSpeech()" title="表示中の図面一覧を音声で読み上げます">🔊 読み上げ</button>
+  <select id="tts-rate" title="読み上げ速度"><option value="0.8">ゆっくり</option><option value="1" selected>標準</option><option value="1.3">速い</option></select>
   <button class="btn btn-print" onclick="doPrint()">🖨 PDF印刷</button>
   <button class="btn btn-secondary" onclick="exportCSV()">📥 CSV出力</button>
 </div>
@@ -531,9 +537,9 @@ function inlineDateCell(id,field,val){const display=val?`<span class="inline-dat
 function promptDate(id,field){const d=drawings.find(x=>x.id===id);if(!d)return;const labels={submitted:'実提出日',revDeadline:'修正図提出期限',revSubmitted:'修正図実提出日'};const val=prompt(`${labels[field]||field}（YYYY-MM-DD）\n空欄でクリア`,d[field]||'');if(val===null)return;d[field]=val.trim();render();scheduleSave();}
 
 // ===== RENDER =====
-function render(){
+function getFiltered(){
   const fSite=document.getElementById('filter-site').value,fStatus=document.getElementById('filter-status').value,fType=document.getElementById('filter-type').value;
-  let filtered=drawings.filter(d=>{
+  return drawings.filter(d=>{
     if(fSite&&d.site!==fSite)return false;
     if(fType&&d.type!==fType)return false;
     if(fStatus==='urgent'){const diff=daysDiff(d.deadline);return diff!==null&&diff<=7&&d.approved!=='done'&&!d.submitted;}
@@ -543,6 +549,9 @@ function render(){
     if(fStatus==='done')return d.approved==='done';
     return true;
   });
+}
+function render(){
+  const filtered=getFiltered();
   const grouped={};filtered.forEach(d=>{(grouped[d.site]=grouped[d.site]||[]).push(d);});
   const tbody=document.getElementById('table-body');tbody.innerHTML='';
   if(!Object.keys(grouped).length){tbody.innerHTML='<tr><td colspan="13" style="padding:24px;color:#a0aec0;text-align:center">表示するデータがありません</td></tr>';updateSummary();return;}
@@ -600,6 +609,57 @@ function updateSummary(){
     ${overdue>0?`<div class="summary-card" style="border-color:#fed7d7"><div class="num urgent-num">${overdue}</div><div class="lbl">🚨 期限超過</div></div>`:''}
   `;
 }
+
+// ===== 音声読み上げ =====
+let ttsActive=false;
+function speechDate(s){const d=new Date(s);return isNaN(d)?s:`${d.getMonth()+1}月${d.getDate()}日`;}
+function buildSpeechItems(){
+  const items=[];
+  const list=getFiltered();
+  const overdue=list.filter(d=>{const x=daysDiff(d.deadline);return x!==null&&x<0&&d.approved!=='done'&&!d.submitted;}).length;
+  const urgent=list.filter(d=>{const x=daysDiff(d.deadline);return x!==null&&x>=0&&x<=7&&d.approved!=='done'&&!d.submitted;}).length;
+  let head=`${appTitle.replace(/[^\p{L}\p{N}\s・ー（）()]/gu,'')}。表示中の図面は${list.length}件です。`;
+  if(overdue)head+=`期限超過が${overdue}件あります。`;
+  if(urgent)head+=`7日以内に期限を迎える図面が${urgent}件あります。`;
+  items.push({text:head,id:null});
+  let curSite=null;
+  list.forEach(d=>{
+    let t='';
+    if(d.site!==curSite){curSite=d.site;t+=`現場、${d.site}。`;}
+    const cm={done:'作成済み',wip:'作成中',none:'未作成'},am={done:'承認済み',none:'未承認',skip:'承認対象外'};
+    t+=`${d.name}、${d.type}。${cm[d.created]||''}、${am[d.approved]||''}。`;
+    if(d.submitted)t+=`${speechDate(d.submitted)}に提出済み。`;
+    else if(d.deadline){const x=daysDiff(d.deadline);t+=x<0?`提出期限を${-x}日超過しています。`:x===0?'提出期限は今日です。':`提出期限まであと${x}日、${speechDate(d.deadline)}です。`;}
+    if(d.revision==='yes'&&!d.revSubmitted){t+='修正があります。';if(d.revDeadline){const x=daysDiff(d.revDeadline);t+=x<0?`修正図の期限を${-x}日超過しています。`:`修正図の期限は${speechDate(d.revDeadline)}です。`;}}
+    if(d.person)t+=`担当は${d.person}さん。`;
+    items.push({text:t,id:d.id});
+  });
+  items.push({text:'読み上げを終わります。',id:null});
+  return items;
+}
+function setTtsUI(on){const b=document.getElementById('tts-btn');b.classList.toggle('speaking',on);b.textContent=on?'⏹ 停止':'🔊 読み上げ';if(!on)document.querySelectorAll('tr.tts-reading').forEach(r=>r.classList.remove('tts-reading'));}
+function stopSpeech(){ttsActive=false;speechSynthesis.cancel();setTtsUI(false);}
+function toggleSpeech(){
+  if(!('speechSynthesis' in window))return alert('このブラウザは音声読み上げに対応していません');
+  if(ttsActive)return stopSpeech();
+  const items=buildSpeechItems();
+  const voice=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith('ja'));
+  const rate=parseFloat(document.getElementById('tts-rate').value)||1;
+  ttsActive=true;setTtsUI(true);speechSynthesis.cancel();
+  let i=0;
+  const next=()=>{
+    if(!ttsActive)return;
+    document.querySelectorAll('tr.tts-reading').forEach(r=>r.classList.remove('tts-reading'));
+    if(i>=items.length)return stopSpeech();
+    const it=items[i++];
+    if(it.id!==null){const row=document.querySelector(`tr[data-id="${it.id}"]`);if(row){row.classList.add('tts-reading');row.scrollIntoView({block:'nearest',behavior:'smooth'});}}
+    const u=new SpeechSynthesisUtterance(it.text);u.lang='ja-JP';u.rate=rate;if(voice)u.voice=voice;
+    u.onend=next;u.onerror=e=>{if(e.error!=='interrupted'&&e.error!=='canceled')next();};
+    speechSynthesis.speak(u);
+  };
+  next();
+}
+if('speechSynthesis' in window){speechSynthesis.getVoices();window.addEventListener('beforeunload',()=>speechSynthesis.cancel());}
 
 // ===== DRAWING MODAL =====
 function fillDrawingForm(d){updateSiteFilter();document.getElementById('f-site').value=d.site;document.getElementById('f-name').value=d.name;document.getElementById('f-type').value=d.type;document.getElementById('f-person').value=d.person||'';document.getElementById('f-lead').value=d.lead||7;document.getElementById('f-created').value=d.created;document.getElementById('f-approved').value=d.approved;document.getElementById('f-deadline').value=d.deadline||'';document.getElementById('f-submitted').value=d.submitted||'';document.getElementById('f-revision').value=d.revision||'none';document.getElementById('f-rev-deadline').value=d.revDeadline||'';document.getElementById('f-rev-submitted').value=d.revSubmitted||'';}
