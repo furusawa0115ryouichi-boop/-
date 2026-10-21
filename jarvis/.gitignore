@@ -1,2 +1,3 @@
 .jarvis-state.json
 node_modules/
+.jarvis-system-prompt.txt

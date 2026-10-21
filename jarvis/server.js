@@ -6,7 +6,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 
 const PORT = Number(process.env.JARVIS_PORT || 7777);
 const HOST = process.env.JARVIS_HOST || '127.0.0.1';
@@ -19,6 +19,8 @@ const MODEL = process.env.JARVIS_MODEL || '';
 const USER_NAME = process.env.JARVIS_USER_NAME || 'ボス';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const STATE_FILE = path.join(__dirname, '.jarvis-state.json');
+const PROMPT_FILE = path.join(__dirname, '.jarvis-system-prompt.txt');
+const IS_WIN = process.platform === 'win32';
 
 const SYSTEM_PROMPT = `
 あなたは「JARVIS」。${USER_NAME}に仕える、極めて優秀で落ち着いた部下（AIアシスタント）です。
@@ -35,11 +37,22 @@ ${USER_NAME}とは音声で会話しています。返答はそのまま音声�
 - ファイル削除、git push、外部への送信、お金がかかる操作など取り返しのつかない操作は、実行前に必ず${USER_NAME}に確認する。
 `.trim();
 
+// 日本語や改行を含むプロンプトはコマンドライン引数だと Windows で崩れるのでファイル経由で渡す
+fs.writeFileSync(PROMPT_FILE, SYSTEM_PROMPT, 'utf8');
+
 let state = { sessionId: null };
 try { state = { ...state, ...JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) }; } catch {}
 const saveState = () => { try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); } catch {} };
 
 let current = null; // 実行中の claude プロセス
+
+function stopCurrent() {
+  if (!current) return;
+  current.stopped = true;
+  // Windows ではシェルごと子プロセスを止める
+  if (IS_WIN) execFile('taskkill', ['/pid', String(current.pid), '/T', '/F'], () => {});
+  else current.kill('SIGINT');
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -88,11 +101,11 @@ async function handleChat(req, res) {
   if (current) return json(res, 409, { error: '前の指示を実行中です' });
 
   const args = [
-    '-p', message,
+    '-p',
     '--output-format', 'stream-json',
     '--verbose',
     '--include-partial-messages',
-    '--append-system-prompt', SYSTEM_PROMPT,
+    '--append-system-prompt-file', PROMPT_FILE,
     '--permission-mode', PERMISSION_MODE,
   ];
   if (MODEL) args.push('--model', MODEL);
@@ -105,7 +118,12 @@ async function handleChat(req, res) {
   });
   const send = (obj) => { if (!res.writableEnded) res.write(JSON.stringify(obj) + '\n'); };
 
-  const child = spawn(CLAUDE_BIN, args, { cwd: WORKDIR, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+  // Windows の claude は .cmd なのでシェル経由で起動する。指示文は stdin で渡す
+  const child = IS_WIN
+    ? spawn([CLAUDE_BIN, ...args].map((a) => `"${a}"`).join(' '), { cwd: WORKDIR, env: process.env, shell: true, windowsHide: true })
+    : spawn(CLAUDE_BIN, args, { cwd: WORKDIR, env: process.env });
+  child.stdin.on('error', () => {});
+  child.stdin.end(message);
   current = child;
   let buf = '';
   let stderr = '';
@@ -176,7 +194,7 @@ async function handleChat(req, res) {
   });
   child.on('close', (code, signal) => {
     current = null;
-    if (signal) send({ t: 'error', msg: '中断しました' });
+    if (signal || child.stopped) send({ t: 'error', msg: '中断しました' });
     else if (!gotResult) {
       // 古いセッションが消えている場合は次回まっさらに始める
       if (/No conversation found/i.test(stderr)) { state.sessionId = null; saveState(); }
@@ -207,11 +225,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'POST' && pathname === '/api/chat') return handleChat(req, res);
   if (req.method === 'POST' && pathname === '/api/stop') {
-    if (current) current.kill('SIGINT');
+    stopCurrent();
     return json(res, 200, { ok: true });
   }
   if (req.method === 'POST' && pathname === '/api/reset') {
-    if (current) current.kill('SIGINT');
+    stopCurrent();
     state.sessionId = null; saveState();
     return json(res, 200, { ok: true });
   }

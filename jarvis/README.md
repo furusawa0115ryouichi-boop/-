@@ -32,7 +32,10 @@ JARVIS_WORKDIR=~/Documents/仕事 node server.js
 
 ブラウザで **http://localhost:7777** を開き、マイクの使用を許可すれば準備完了です。
 
-Mac なら `start-mac.command` をダブルクリックでも起動できます（作業フォルダは中の `JARVIS_WORKDIR` を書き換えてください）。
+- **Windows**: `start-windows.bat` をダブルクリック。ブラウザも自動で開きます（作業フォルダは既定で「ドキュメント」。変えたいときは bat をメモ帳で開いて `JARVIS_WORKDIR` の行を書き換え）。
+- **Mac**: `start-mac.command` をダブルクリック（作業フォルダは中の `JARVIS_WORKDIR` を書き換えてください）。
+
+Windows で Claude Code を使うには [Git for Windows](https://git-scm.com/downloads/win) も必要です。
 
 ## 話しかけ方の例
 
