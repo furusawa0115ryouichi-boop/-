@@ -53,6 +53,16 @@ Windows で Claude Code を使うには [Git for Windows](https://git-scm.com/do
 | `JARVIS_PERMISSION_MODE` | `acceptEdits` | Claude Code の権限モード（下記） |
 | `JARVIS_MODEL` | Claude Code の既定 | 使うモデル（例: `opus`, `sonnet`） |
 | `JARVIS_PORT` | `7777` | ポート番号 |
+| `JARVIS_RULES_BRANCH` | `main` | ルール（CLAUDE.md）を取り込むブランチ |
+| `JARVIS_RULES_SYNC_MIN` | `60` | ルールを取り込む間隔（分）。`0` でオフ |
+
+### ルールの自動取り込み
+
+クラウドの Claude で「保存して」と頼んだルールは、GitHub の `main` ブランチの `CLAUDE.md` に保存されます。
+JARVIS は起動時と 60 分ごとにそれを取り込み、次の指示から従います（作業フォルダのファイルは書き換えません）。
+
+- `jarvis` フォルダを `git clone` したリポジトリの中から起動してください（ZIP でダウンロードしたものでは動きません）。
+- 取り込みに成功すると、起動画面に `[rules] ルールを取り込みました` と表示されます。
 
 ### 権限モードについて
 

@@ -38,7 +38,37 @@ ${USER_NAME}とは音声で会話しています。返答はそのまま音声�
 `.trim();
 
 // 日本語や改行を含むプロンプトはコマンドライン引数だと Windows で崩れるのでファイル経由で渡す
-fs.writeFileSync(PROMPT_FILE, SYSTEM_PROMPT, 'utf8');
+// claude を起動するたびにこのファイルが読まれるので、書き換えれば次の指示から反映される
+let rules = { text: '', syncedAt: null, error: null };
+function writePrompt() {
+  const text = rules.text
+    ? `${SYSTEM_PROMPT}\n\n以下は${USER_NAME}と決めた作業ルール（リポジトリの CLAUDE.md）。必ず従うこと。\n\n${rules.text}`
+    : SYSTEM_PROMPT;
+  fs.writeFileSync(PROMPT_FILE, text, 'utf8');
+}
+writePrompt();
+
+// クラウドの Claude で保存したルール（GitHub の main ブランチの CLAUDE.md）を定期的に取り込む。
+// 作業ツリーには触らず、fetch した main から CLAUDE.md だけを読む
+const RULES_BRANCH = process.env.JARVIS_RULES_BRANCH || 'main';
+const RULES_SYNC_MIN = Number(process.env.JARVIS_RULES_SYNC_MIN || 60);
+function syncRules() {
+  const opts = { cwd: __dirname, windowsHide: true, timeout: 60000 };
+  execFile('git', ['fetch', '-q', 'origin', RULES_BRANCH], opts, (fetchErr) => {
+    execFile('git', ['show', `origin/${RULES_BRANCH}:CLAUDE.md`], { ...opts, maxBuffer: 1e6 }, (err, out) => {
+      if (err || !out.trim()) {
+        rules.error = (fetchErr || err || new Error('CLAUDE.md が空です')).message.trim().split('\n')[0];
+        console.warn(`[rules] ルールを取り込めませんでした: ${rules.error}`);
+        return;
+      }
+      rules = { text: out.trim(), syncedAt: new Date().toISOString(), error: fetchErr ? 'fetch に失敗（前回取得分を使用）' : null };
+      writePrompt();
+      console.log(`[rules] ルールを取り込みました (${new Date().toLocaleString('ja-JP')})`);
+    });
+  });
+}
+syncRules();
+if (RULES_SYNC_MIN > 0) setInterval(syncRules, RULES_SYNC_MIN * 60 * 1000).unref();
 
 let state = { sessionId: null };
 try { state = { ...state, ...JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) }; } catch {}
@@ -237,6 +267,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, {
       session: state.sessionId, busy: !!current, cwd: WORKDIR,
       permissionMode: PERMISSION_MODE, model: MODEL || 'default', user: USER_NAME,
+      rulesSyncedAt: rules.syncedAt, rulesError: rules.error,
     });
   }
   if (req.method === 'GET') return serveStatic(req, res);
@@ -250,6 +281,7 @@ server.listen(PORT, HOST, () => {
   URL        : http://localhost:${PORT}
   作業フォルダ : ${WORKDIR}
   権限モード   : ${PERMISSION_MODE}
+  ルール同期   : ${RULES_SYNC_MIN > 0 ? `${RULES_SYNC_MIN} 分ごと（origin/${RULES_BRANCH} の CLAUDE.md）` : 'オフ'}
   ─────────────────────────────────────────
   ブラウザ（Chrome / Edge 推奨）で上の URL を開いてください。
 `);
