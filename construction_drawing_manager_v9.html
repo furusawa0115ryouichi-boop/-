@@ -156,6 +156,36 @@ tr.dragging { opacity:.4; }
 .mini-wrap { overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;max-height:380px;overflow-y:auto; }
 .mat-none{background:#fed7d7;color:#822727} .mat-ordered{background:#fefcbf;color:#744210} .mat-delivered{background:#c6f6d5;color:#276749}
 
+/* 工程表（ガントチャート） */
+.gantt-toolbar { display:flex;gap:12px;align-items:center;padding:10px 16px 0;font-size:11px;color:#4a5568;flex-wrap:wrap; }
+.gantt-toolbar label { display:flex;align-items:center;gap:4px;cursor:pointer; }
+.gantt-legend { display:flex;gap:10px;align-items:center;flex-wrap:wrap; }
+.gantt-wrap { margin:10px 16px 16px;background:white;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:auto;max-height:calc(100vh - 230px); }
+.gantt { position:relative;width:max-content;min-width:100%; }
+.g-row { display:flex;border-bottom:1px solid #edf2f7;min-height:30px; }
+.g-row:hover .g-label { background:#f0f6ff; }
+.g-label { position:sticky;left:0;z-index:3;width:230px;flex-shrink:0;background:white;border-right:1px solid #e2e8f0;padding:6px 10px;font-size:11px;display:flex;flex-direction:column;justify-content:center; }
+.g-label .g-name { font-weight:700;color:#2d3748;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.g-label .g-sub { font-size:10px;color:#718096;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.g-row.g-site .g-label { background:#edf2f7; }
+.g-row.g-site .g-label .g-name { color:#1e3a5f;font-size:12px; }
+.g-row.g-site .g-track { background:#f7fafc; }
+.g-track { position:relative;flex-shrink:0; }
+.g-head { position:sticky;top:0;z-index:4;background:#2d6a9f;color:white; }
+.g-head .g-label { background:#1e3a5f;color:white;font-weight:700;z-index:5; }
+.g-month { position:absolute;top:0;bottom:0;border-left:1px solid rgba(255,255,255,.25);font-size:10px;font-weight:700;padding:8px 5px;white-space:nowrap;overflow:hidden; }
+.g-grid { position:absolute;top:0;bottom:0;border-left:1px solid #edf2f7;pointer-events:none; }
+.g-today { position:absolute;top:0;bottom:0;width:2px;background:#e53e3e;z-index:2;pointer-events:none; }
+.g-bar { position:absolute;top:7px;height:16px;border-radius:4px;background:#bee3f8;overflow:hidden;cursor:pointer;font-size:10px;font-weight:700;color:#1e3a5f;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+.g-bar .g-fill { position:absolute;left:0;top:0;bottom:0;background:#63b3ed; }
+.g-bar .g-text { position:relative;padding:0 6px;line-height:16px; }
+.g-bar.g-late { background:#fed7d7; } .g-bar.g-late .g-fill { background:#fc8181; }
+.g-bar.g-done { background:#c6f6d5; } .g-bar.g-done .g-fill { background:#68d391; }
+.g-bar.g-period { background:#1e3a5f;color:white;top:9px;height:12px;cursor:default; }
+.g-mark { position:absolute;top:8px;width:12px;height:12px;margin-left:-6px;font-size:11px;line-height:12px;text-align:center;z-index:2;cursor:default; }
+.g-mark.dw { transform:rotate(45deg);width:9px;height:9px;margin-left:-4px;top:10px;border-radius:1px; }
+.g-legend-dot { display:inline-block;width:12px;height:8px;border-radius:2px;vertical-align:middle;margin-right:3px; }
+
 /* Loading overlay */
 #loading-screen { position:fixed;inset:0;background:#f0f4f8;z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px; }
 .loading-spinner { width:36px;height:36px;border:4px solid #bee3f8;border-top-color:#2d6a9f;border-radius:50%;animation:spin .8s linear infinite; }
@@ -188,7 +218,9 @@ tr.dragging { opacity:.4; }
   .date-empty::after{content:'－';font-size:8px;color:#a0aec0}
   .date-empty{font-size:0 !important}
   .drag-handle{display:none !important}
-  .view-tabs{display:none !important}
+  .view-tabs,.gantt-toolbar{display:none !important}
+  .gantt-wrap{max-height:none !important;overflow:visible !important;box-shadow:none !important}
+  .g-bar,.g-fill,.g-mark,.g-today,.g-head,.g-row.g-site .g-label,.g-row.g-site .g-track{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .site-grid{grid-template-columns:repeat(2,1fr) !important;padding:0 !important}
   .site-card{break-inside:avoid;box-shadow:none !important}
   .chip,.progress,.progress > div{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -263,6 +295,7 @@ tr.dragging { opacity:.4; }
 <div class="view-tabs no-print">
   <button class="view-tab" id="tab-sites" onclick="switchView('sites')">🏗 現場一覧</button>
   <button class="view-tab" id="tab-drawings" onclick="switchView('drawings')">📐 図面一覧</button>
+  <button class="view-tab" id="tab-gantt" onclick="switchView('gantt')">📅 工程表</button>
 </div>
 
 <div id="view-sites">
@@ -311,6 +344,25 @@ tr.dragging { opacity:.4; }
   </table>
 </div>
 </div><!-- #view-drawings -->
+
+<div id="view-gantt">
+  <div class="gantt-toolbar no-print">
+    <span style="font-weight:700">表示幅</span>
+    <select id="gantt-scale" onchange="renderGantt()"><option value="2">狭い（年単位）</option><option value="4" selected>標準</option><option value="10">広い（日単位）</option></select>
+    <label><input type="checkbox" id="gantt-show-dw" checked onchange="renderGantt()">図面の提出期限</label>
+    <label><input type="checkbox" id="gantt-show-mat" checked onchange="renderGantt()">材料の納品予定</label>
+    <div class="spacer"></div>
+    <div class="gantt-legend">
+      <span><span class="g-legend-dot" style="background:#1e3a5f"></span>工期</span>
+      <span><span class="g-legend-dot" style="background:#63b3ed"></span>工程（濃い部分＝進捗）</span>
+      <span><span class="g-legend-dot" style="background:#fc8181"></span>遅れ</span>
+      <span><span class="g-legend-dot" style="background:#68d391"></span>完了</span>
+      <span>◆ 図面期限</span><span>▲ 材料納品</span>
+      <span><span class="g-legend-dot" style="background:#e53e3e;width:3px"></span>今日</span>
+    </div>
+  </div>
+  <div class="gantt-wrap"><div class="gantt" id="gantt"></div></div>
+</div>
 
 <!-- Drawing Add/Edit Modal -->
 <div class="modal-overlay no-print" id="modal-drawing">
@@ -416,7 +468,7 @@ tr.dragging { opacity:.4; }
     <div class="warn-box">
       <strong>⚠️ 削除の確認</strong>
       「<span id="delete-site-name"></span>」を削除しますか？<br>
-      この現場に登録されている <strong id="delete-site-count"></strong> 件の図面と <strong id="delete-site-mat-count"></strong> 件の材料、基本情報もすべて削除されます。<br>
+      この現場に登録されている <strong id="delete-site-count"></strong> 件の図面と <strong id="delete-site-mat-count"></strong> 件の材料、工程、基本情報もすべて削除されます。<br>
       この操作は取り消せません。
     </div>
     <div class="modal-actions">
@@ -432,6 +484,7 @@ tr.dragging { opacity:.4; }
     <h2 id="sd-title">🏗 現場詳細</h2>
     <div class="detail-tabs">
       <button class="detail-tab" data-tab="info" onclick="switchDetailTab('info')">📝 基本情報・工期・担当者</button>
+      <button class="detail-tab" data-tab="process" onclick="switchDetailTab('process')">📅 工程</button>
       <button class="detail-tab" data-tab="materials" onclick="switchDetailTab('materials')">🧱 材料</button>
       <button class="detail-tab" data-tab="drawings" onclick="switchDetailTab('drawings')">📐 図面</button>
     </div>
@@ -454,6 +507,15 @@ tr.dragging { opacity:.4; }
       <div class="form-group"><label>担当者（複数は「、」区切り）</label><input type="text" id="sd-staff" placeholder="例：田中、佐藤"></div>
       <div class="form-group"><label>備考</label><textarea id="sd-memo"></textarea></div>
       <div class="modal-actions" style="margin-top:6px"><button class="btn btn-primary" onclick="saveSiteInfo()">基本情報を保存</button></div>
+    </div>
+    <div id="sd-pane-process">
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+        <button class="btn btn-primary" onclick="openProcessModal(null)">＋ 工程追加</button>
+        <span style="font-size:10px;color:#718096">登録した工程は「📅 工程表」タブにバーで表示されます</span>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary btn-sm" onclick="showGanttOf(detailSite)">📅 工程表で開く</button>
+      </div>
+      <div class="mini-wrap" id="sd-process"></div>
     </div>
     <div id="sd-pane-materials">
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
@@ -483,8 +545,12 @@ tr.dragging { opacity:.4; }
     <div class="form-group"><label>材料名 *</label><input type="text" id="m-name" placeholder="例：スパイラルダクト"></div>
     <div class="form-group"><label>規格・仕様</label><input type="text" id="m-spec" placeholder="例：φ150 t0.5"></div>
     <div class="form-row">
-      <div class="form-group"><label>数量</label><input type="number" id="m-qty" min="0" step="any"></div>
+      <div class="form-group"><label>数量</label><input type="number" id="m-qty" min="0" step="any" oninput="updateMatAmount()"></div>
       <div class="form-group"><label>単位</label><input type="text" id="m-unit" placeholder="例：本、m、個"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>単価（円）</label><input type="number" id="m-price" min="0" step="any" oninput="updateMatAmount()"></div>
+      <div class="form-group"><label>金額（数量×単価）</label><input type="text" id="m-amount" readonly style="background:#f7fafc;font-weight:700;color:#1e3a5f"></div>
     </div>
     <div class="form-group"><label>発注先（業者）</label><input type="text" id="m-supplier"></div>
     <div class="form-row">
@@ -498,6 +564,27 @@ tr.dragging { opacity:.4; }
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-material')">キャンセル</button>
       <button class="btn btn-primary" id="mat-modal-submit" onclick="submitMaterial()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Process Add/Edit Modal -->
+<div class="modal-overlay no-print" id="modal-process" style="z-index:210">
+  <div class="modal modal-edit" style="width:440px">
+    <h2 id="proc-modal-title">📅 工程を追加</h2>
+    <div class="form-group"><label>工程名 *</label><input type="text" id="p-name" placeholder="例：基礎工事、ダクト吊り込み"></div>
+    <div class="form-row">
+      <div class="form-group"><label>開始日 *</label><input type="date" id="p-start"></div>
+      <div class="form-group"><label>終了日 *</label><input type="date" id="p-end"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>担当者・業者</label><input type="text" id="p-person"></div>
+      <div class="form-group"><label>進捗（%）</label><input type="number" id="p-progress" min="0" max="100" step="5" value="0"></div>
+    </div>
+    <div class="form-group"><label>備考</label><input type="text" id="p-memo"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-process')">キャンセル</button>
+      <button class="btn btn-primary" id="proc-modal-submit" onclick="submitProcess()">追加する</button>
     </div>
   </div>
 </div>
@@ -541,9 +628,9 @@ const DEFAULT_SITE_INFO = {
   'C現場（□□オフィス）':{client:'□□商事',address:'',start:'2026-06-01',end:'2027-08-31',manager:'高橋',staff:'渡辺',contact:'',memo:''},
 };
 const DEFAULT_MATERIALS = [
-  {id:1,site:'A現場（△△マンション）',name:'スパイラルダクト',spec:'φ150',qty:40,unit:'本',supplier:'○○空調資材',orderDate:'2026-04-20',deliveryDate:'2026-05-12',status:'ordered',memo:''},
-  {id:2,site:'A現場（△△マンション）',name:'換気扇',spec:'天井埋込型',qty:24,unit:'台',supplier:'',orderDate:'',deliveryDate:'',status:'none',memo:''},
-  {id:3,site:'B現場（○○倉庫）',name:'角ダクト',spec:'600×400',qty:30,unit:'m',supplier:'△△板金',orderDate:'2026-04-10',deliveryDate:'2026-04-28',status:'delivered',memo:''},
+  {id:1,site:'A現場（△△マンション）',name:'スパイラルダクト',spec:'φ150',qty:40,unit:'本',price:2800,supplier:'○○空調資材',orderDate:'2026-04-20',deliveryDate:'2026-05-12',status:'ordered',memo:''},
+  {id:2,site:'A現場（△△マンション）',name:'換気扇',spec:'天井埋込型',qty:24,unit:'台',price:15000,supplier:'',orderDate:'',deliveryDate:'',status:'none',memo:''},
+  {id:3,site:'B現場（○○倉庫）',name:'角ダクト',spec:'600×400',qty:30,unit:'m',price:6500,supplier:'△△板金',orderDate:'2026-04-10',deliveryDate:'2026-04-28',status:'delivered',memo:''},
 ];
 
 let sites = [];
@@ -551,6 +638,17 @@ let templates = [];
 let drawings = [];
 let siteInfo = {};   // 現場名 → 基本情報・工期・担当者
 let materials = [];
+let processes = [];  // 工程表の工程
+let nextProcId = 7;
+let editingProcId = null;
+const DEFAULT_PROCESSES = [
+  {id:1,site:'A現場（△△マンション）',name:'基礎工事',start:'2026-04-01',end:'2026-06-15',person:'○○建設',progress:100,memo:''},
+  {id:2,site:'A現場（△△マンション）',name:'躯体工事',start:'2026-06-01',end:'2026-11-30',person:'○○建設',progress:70,memo:''},
+  {id:3,site:'A現場（△△マンション）',name:'換気ダクト工事',start:'2026-10-01',end:'2027-01-31',person:'鈴木',progress:20,memo:''},
+  {id:4,site:'B現場（○○倉庫）',name:'鉄骨建方',start:'2026-04-01',end:'2026-07-31',person:'山田',progress:100,memo:''},
+  {id:5,site:'B現場（○○倉庫）',name:'換気設備工事',start:'2026-08-01',end:'2026-11-15',person:'伊藤',progress:60,memo:''},
+  {id:6,site:'C現場（□□オフィス）',name:'解体・準備',start:'2026-06-01',end:'2026-08-31',person:'高橋',progress:90,memo:''},
+];
 let nextId = 12;
 let nextMatId = 4;
 let currentView = 'sites';
@@ -573,6 +671,8 @@ async function loadData() {
       siteInfo  = d.siteInfo  || {};
       materials = d.materials || [];
       nextMatId = d.nextMatId || (Math.max(0,...materials.map(x=>x.id))+1);
+      processes = d.processes || [];
+      nextProcId = d.nextProcId || (Math.max(0,...processes.map(x=>x.id))+1);
       document.getElementById('main-title').textContent = appTitle;
       setSaveState('ok','保存済みデータを読み込みました');
     } else {
@@ -582,6 +682,7 @@ async function loadData() {
       drawings  = DEFAULT_DRAWINGS.map(d=>({...d}));
       siteInfo  = JSON.parse(JSON.stringify(DEFAULT_SITE_INFO));
       materials = DEFAULT_MATERIALS.map(m=>({...m}));
+      processes = DEFAULT_PROCESSES.map(p=>({...p}));
       await persistSave();
       setSaveState('ok','初期データをセットしました');
     }
@@ -592,6 +693,7 @@ async function loadData() {
     drawings  = DEFAULT_DRAWINGS.map(d=>({...d}));
     siteInfo  = JSON.parse(JSON.stringify(DEFAULT_SITE_INFO));
     materials = DEFAULT_MATERIALS.map(m=>({...m}));
+    processes = DEFAULT_PROCESSES.map(p=>({...p}));
     setSaveState('error','自動保存に対応していない環境です（ページを閉じるとデータは消えます）');
   }
   document.getElementById('loading-screen').style.display = 'none';
@@ -603,7 +705,7 @@ async function loadData() {
 async function persistSave() {
   try {
     await window.storage.set(STORAGE_KEY, JSON.stringify({
-      sites, templates, drawings, title: appTitle, nextId, siteInfo, materials, nextMatId
+      sites, templates, drawings, title: appTitle, nextId, siteInfo, materials, nextMatId, processes, nextProcId
     }));
     const now = new Date();
     const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -697,7 +799,7 @@ function render(){
   });
   const grouped={};filtered.forEach(d=>{(grouped[d.site]=grouped[d.site]||[]).push(d);});
   const tbody=document.getElementById('table-body');tbody.innerHTML='';
-  if(!Object.keys(grouped).length){tbody.innerHTML='<tr><td colspan="13" style="padding:24px;color:#a0aec0;text-align:center">表示するデータがありません</td></tr>';updateSummary();renderSiteCards();return;}
+  if(!Object.keys(grouped).length){tbody.innerHTML='<tr><td colspan="13" style="padding:24px;color:#a0aec0;text-align:center">表示するデータがありません</td></tr>';updateSummary();renderSiteCards();if(currentView==='gantt')renderGantt();return;}
   Object.keys(grouped).forEach(site=>{
     const hr=document.createElement('tr');hr.className='row-group-header';hr.innerHTML=`<td colspan="13">🏗 ${site}</td>`;tbody.appendChild(hr);
     grouped[site].forEach(d=>{
@@ -733,6 +835,7 @@ function render(){
   });
   updateSummary();
   renderSiteCards();
+  if(currentView==='gantt')renderGantt();
 }
 function updateSummary(){
   const total=drawings.length,approved=drawings.filter(d=>d.approved==='done').length;
@@ -776,7 +879,7 @@ function renderSiteList(){
   el.innerHTML=sites.map((s,i)=>`<div class="site-item" id="si-${i}"><div><div class="site-item-name" id="sn-${i}">${s}</div><div class="site-item-count">図面 ${drawings.filter(d=>d.site===s).length} 件</div></div><div style="display:flex;gap:6px" id="sa-${i}"><button class="btn btn-edit btn-sm" onclick="closeModal('modal-site-manage');openSiteDetail(${i})">📋 詳細</button><button class="btn btn-secondary btn-sm" onclick="startRename(${i})">✏️ 変更</button><button class="btn btn-danger btn-sm" onclick="askDeleteSite('${s.replace(/'/g,"\\'")}')">🗑 削除</button></div></div>`).join('');
 }
 function startRename(i){document.getElementById(`sn-${i}`).style.display='none';document.getElementById(`sa-${i}`).innerHTML=`<input class="site-rename-input" id="ri-${i}" value="${sites[i]}"><button class="btn btn-primary btn-sm" onclick="confirmRename(${i})">保存</button><button class="btn btn-secondary btn-sm" onclick="renderSiteList()">取消</button>`;document.getElementById(`ri-${i}`).focus();}
-function confirmRename(i){const n=document.getElementById(`ri-${i}`).value.trim();if(!n)return alert('現場名を入力してください');if(sites.includes(n)&&n!==sites[i])return alert('同じ名前の現場が既に存在します');const old=sites[i];drawings.forEach(d=>{if(d.site===old)d.site=n;});materials.forEach(m=>{if(m.site===old)m.site=n;});if(siteInfo[old]){siteInfo[n]=siteInfo[old];delete siteInfo[old];}sites[i]=n;updateSiteFilter();renderSiteList();render();scheduleSave();}
+function confirmRename(i){const n=document.getElementById(`ri-${i}`).value.trim();if(!n)return alert('現場名を入力してください');if(sites.includes(n)&&n!==sites[i])return alert('同じ名前の現場が既に存在します');const old=sites[i];drawings.forEach(d=>{if(d.site===old)d.site=n;});materials.forEach(m=>{if(m.site===old)m.site=n;});processes.forEach(p=>{if(p.site===old)p.site=n;});if(siteInfo[old]){siteInfo[n]=siteInfo[old];delete siteInfo[old];}sites[i]=n;updateSiteFilter();renderSiteList();render();scheduleSave();}
 function addSiteInline(){
   const n=document.getElementById('f-new-sitename').value.trim();
   if(!n)return alert('現場名を入力してください');
@@ -786,7 +889,7 @@ function addSiteInline(){
   updateSiteFilter();renderSiteList();render();scheduleSave();
 }
 function askDeleteSite(s){pendingDeleteSite=s;document.getElementById('delete-site-name').textContent=s;document.getElementById('delete-site-count').textContent=drawings.filter(d=>d.site===s).length;document.getElementById('delete-site-mat-count').textContent=materials.filter(m=>m.site===s).length;document.getElementById('modal-delete-site').classList.add('active');}
-function confirmDeleteSite(){if(!pendingDeleteSite)return;drawings=drawings.filter(d=>d.site!==pendingDeleteSite);materials=materials.filter(m=>m.site!==pendingDeleteSite);delete siteInfo[pendingDeleteSite];sites=sites.filter(s=>s!==pendingDeleteSite);pendingDeleteSite=null;closeModal('modal-delete-site');updateSiteFilter();renderSiteList();render();scheduleSave();}
+function confirmDeleteSite(){if(!pendingDeleteSite)return;drawings=drawings.filter(d=>d.site!==pendingDeleteSite);materials=materials.filter(m=>m.site!==pendingDeleteSite);processes=processes.filter(p=>p.site!==pendingDeleteSite);delete siteInfo[pendingDeleteSite];sites=sites.filter(s=>s!==pendingDeleteSite);pendingDeleteSite=null;closeModal('modal-delete-site');updateSiteFilter();renderSiteList();render();scheduleSave();}
 function updateSiteFilter(){const sel=document.getElementById('filter-site');const cur=sel.value;sel.innerHTML='<option value="">全現場</option>';sites.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;if(s===cur)o.selected=true;sel.appendChild(o);});const fs=document.getElementById('f-site');if(fs){fs.innerHTML='';sites.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;fs.appendChild(o);});}}
 function closeModal(id){document.getElementById(id).classList.remove('active');}
 function exportCSV(){const h=['現場名','図面名','種別','作成状況','承認状況','提出期限','実提出日','修正の有無','修正図期限','修正図提出日','担当者'];const cm={done:'作成済',wip:'作成中',none:'未作成'},am={done:'承認済',none:'未承認',skip:'対象外'},rm={yes:'修正あり',no:'修正なし',none:'未確認'};const rows=drawings.map(d=>[d.site,d.name,d.type,cm[d.created]||'',am[d.approved]||'',d.deadline||'',d.submitted||'',rm[d.revision]||'',d.revDeadline||'',d.revSubmitted||'',d.person||''].join(','));const csv='\uFEFF'+[h.join(','),...rows].join('\n');const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='施工図管理表.csv';a.click();}
@@ -797,10 +900,13 @@ function switchView(v){
   currentView=v;
   document.getElementById('view-sites').style.display=v==='sites'?'':'none';
   document.getElementById('view-drawings').style.display=v==='drawings'?'':'none';
+  document.getElementById('view-gantt').style.display=v==='gantt'?'':'none';
+  document.getElementById('tab-gantt').classList.toggle('active',v==='gantt');
   document.getElementById('tab-sites').classList.toggle('active',v==='sites');
   document.getElementById('tab-drawings').classList.toggle('active',v==='drawings');
   render();
 }
+function showGanttOf(site){closeSiteDetail();document.getElementById('filter-site').value=site;switchView('gantt');}
 function showDrawingsOf(site){closeSiteDetail();document.getElementById('filter-site').value=site;switchView('drawings');}
 
 // ===== SITE CARDS =====
@@ -838,6 +944,8 @@ function renderSiteCards(){
     const nextDel=ms.filter(m=>m.status!=='delivered'&&m.deliveryDate).sort((a,b)=>a.deliveryDate.localeCompare(b.deliveryDate))[0];
     const nextDelDiff=nextDel?daysDiff(nextDel.deliveryDate):null;
     const people=sitePeople(s);
+    const ps=processes.filter(x=>x.site===s);
+    const active=ps.filter(x=>daysDiff(x.start)<=0&&(x.progress||0)<100);
     return `<div class="site-card">
       <div class="site-card-head">
         <div class="site-card-name">🏗 ${esc(s)}</div>
@@ -849,6 +957,10 @@ function renderSiteCards(){
           <div class="sc-val" style="font-size:12px;margin-bottom:4px">${p.text}</div>
           ${p.pct!==null?`<div class="progress period"><div style="width:${p.pct}%"></div></div>`:''}
         </div>
+        ${ps.length?`<div>
+          <div class="sc-block-title"><span>🗓 進行中の工程</span><span style="color:#4a5568">全${ps.length}工程</span></div>
+          ${active.length?active.map(x=>`<div class="sc-row"><span class="sc-val" style="flex:1">${esc(x.name)}<span style="color:#718096;font-weight:400">（〜${fmtDate(x.end)}）</span></span><span class="chip ${procLate(x)?'chip-red':'chip-blue'}">${x.progress||0}%${procLate(x)?' 遅れ':''}</span></div>`).join(''):'<div class="sc-row"><span class="sc-val" style="color:#a0aec0">今日の時点で進行中の工程はありません</span></div>'}
+        </div>`:''}
         <div>
           <div class="sc-block-title"><span>👷 担当者</span></div>
           <div class="sc-row"><span class="sc-key">責任者</span><span class="sc-val">${esc(info.manager||'－')}${info.contact?`<span style="color:#718096;font-weight:400">（${esc(info.contact)}）</span>`:''}</span></div>
@@ -865,7 +977,7 @@ function renderSiteCards(){
           </div>
         </div>
         <div>
-          <div class="sc-block-title"><span>🧱 材料</span><span style="color:#4a5568">${ms.length} 件</span></div>
+          <div class="sc-block-title"><span>🧱 材料</span><span style="color:#4a5568">${ms.length} 件${ms.length?`　合計 <b style="color:#1e3a5f">${yen(ms.reduce((a,m)=>a+matAmount(m),0))}</b>`:''}</span></div>
           <div class="sc-chips" style="margin-top:0">
             ${ms.length?`<span class="chip chip-red">未発注 ${matNone}</span><span class="chip chip-yellow">発注済 ${matOrd}</span><span class="chip chip-green">納品済 ${matDel}</span>`:'<span class="chip">未登録</span>'}
           </div>
@@ -892,7 +1004,8 @@ function openSiteDetail(i){
 function closeSiteDetail(){detailSite=null;closeModal('modal-site-detail');}
 function switchDetailTab(t){
   document.querySelectorAll('.detail-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
-  ['info','materials','drawings'].forEach(k=>{document.getElementById('sd-pane-'+k).style.display=k===t?'':'none';});
+  ['info','process','materials','drawings'].forEach(k=>{document.getElementById('sd-pane-'+k).style.display=k===t?'':'none';});
+  if(t==='process')renderDetailProcesses();
   if(t==='materials')renderDetailMaterials();
   if(t==='drawings')renderDetailDrawings();
 }
@@ -908,18 +1021,20 @@ function renderDetailMaterials(){
   const ms=materials.filter(m=>m.site===detailSite);
   const el=document.getElementById('sd-materials');
   if(!ms.length){el.innerHTML='<div style="padding:20px;text-align:center;color:#a0aec0;font-size:12px">材料が登録されていません</div>';return;}
-  el.innerHTML=`<table class="mini-table"><thead><tr><th>材料名</th><th>規格・仕様</th><th>数量</th><th>発注先</th><th>発注日</th><th>納品予定</th><th>状況</th><th>操作</th></tr></thead><tbody>${ms.map(m=>{
+  el.innerHTML=`<table class="mini-table"><thead><tr><th>材料名</th><th>規格・仕様</th><th>数量</th><th>単価</th><th>金額</th><th>発注先</th><th>発注日</th><th>納品予定</th><th>状況</th><th>操作</th></tr></thead><tbody>${ms.map(m=>{
     const dd=daysDiff(m.deliveryDate);const late=m.status!=='delivered'&&dd!==null;
     return `<tr>
       <td class="td-left"><span class="drawing-name">${esc(m.name)}</span>${m.memo?`<div style="font-size:10px;color:#718096">${esc(m.memo)}</div>`:''}</td>
       <td class="td-left">${esc(m.spec)||'－'}</td>
       <td>${m.qty!==''&&m.qty!=null?esc(m.qty)+' '+esc(m.unit):'－'}</td>
+      <td style="text-align:right">${m.price!==''&&m.price!=null?yen(m.price):'－'}</td>
+      <td style="text-align:right;font-weight:700">${matAmount(m)?yen(matAmount(m)):'－'}</td>
       <td class="td-left">${esc(m.supplier)||'－'}</td>
       <td>${fmtDate(m.orderDate)||'－'}</td>
       <td class="${late&&dd<0?'dl-overdue':late&&dd<=7?'dl-urgent':''}">${fmtDate(m.deliveryDate)||'－'}</td>
       <td><button class="status-badge mat-${m.status}" onclick="toggleMaterialStatus(${m.id})">${MAT_LABEL[m.status]}</button></td>
       <td><div style="display:flex;gap:4px;justify-content:center"><button class="btn btn-edit btn-sm" onclick="openMaterialModal(${m.id})">✏️</button><button class="btn btn-danger btn-sm" onclick="removeMaterial(${m.id})">削除</button></div></td>
-    </tr>`;}).join('')}</tbody></table>`;
+    </tr>`;}).join('')}</tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:700;background:#f7fafc">合計</td><td style="text-align:right;font-weight:800;color:#1e3a5f;background:#f7fafc">${yen(ms.reduce((a,m)=>a+matAmount(m),0))}</td><td colspan="5" style="background:#f7fafc;text-align:left;font-size:10px;color:#718096">うち未発注 ${yen(ms.filter(m=>m.status==='none').reduce((a,m)=>a+matAmount(m),0))}</td></tr></tfoot></table>`;
 }
 function renderDetailDrawings(){
   const ds=drawings.filter(d=>d.site===detailSite);
@@ -938,10 +1053,10 @@ function addDrawingForSite(){const s=detailSite;closeSiteDetail();openAddModal()
 // ===== MATERIALS =====
 function openMaterialModal(id){
   editingMatId=id;
-  const m=id!==null?materials.find(x=>x.id===id):{name:'',spec:'',qty:'',unit:'',supplier:'',orderDate:'',deliveryDate:'',status:'none',memo:''};
+  const m=id!==null?materials.find(x=>x.id===id):{name:'',spec:'',qty:'',unit:'',price:'',supplier:'',orderDate:'',deliveryDate:'',status:'none',memo:''};
   if(!m)return;
   document.getElementById('m-name').value=m.name;document.getElementById('m-spec').value=m.spec||'';
-  document.getElementById('m-qty').value=m.qty??'';document.getElementById('m-unit').value=m.unit||'';
+  document.getElementById('m-qty').value=m.qty??'';document.getElementById('m-unit').value=m.unit||'';document.getElementById('m-price').value=m.price??'';updateMatAmount();
   document.getElementById('m-supplier').value=m.supplier||'';document.getElementById('m-order').value=m.orderDate||'';
   document.getElementById('m-delivery').value=m.deliveryDate||'';document.getElementById('m-status').value=m.status||'none';
   document.getElementById('m-memo').value=m.memo||'';
@@ -952,20 +1067,125 @@ function openMaterialModal(id){
 function submitMaterial(){
   const name=document.getElementById('m-name').value.trim();
   if(!name)return alert('材料名を入力してください');
-  const q=document.getElementById('m-qty').value;
-  const data={name,spec:document.getElementById('m-spec').value.trim(),qty:q===''?'':Number(q),unit:document.getElementById('m-unit').value.trim(),supplier:document.getElementById('m-supplier').value.trim(),orderDate:document.getElementById('m-order').value,deliveryDate:document.getElementById('m-delivery').value,status:document.getElementById('m-status').value,memo:document.getElementById('m-memo').value.trim()};
+  const q=document.getElementById('m-qty').value,pr=document.getElementById('m-price').value;
+  const data={name,spec:document.getElementById('m-spec').value.trim(),qty:q===''?'':Number(q),unit:document.getElementById('m-unit').value.trim(),price:pr===''?'':Number(pr),supplier:document.getElementById('m-supplier').value.trim(),orderDate:document.getElementById('m-order').value,deliveryDate:document.getElementById('m-delivery').value,status:document.getElementById('m-status').value,memo:document.getElementById('m-memo').value.trim()};
   if(editingMatId!==null){const idx=materials.findIndex(x=>x.id===editingMatId);if(idx>=0)materials[idx]={...materials[idx],...data};}
   else materials.push({id:nextMatId++,site:detailSite,...data});
   closeModal('modal-material');renderDetailMaterials();render();scheduleSave();
 }
 function toggleMaterialStatus(id){const m=materials.find(x=>x.id===id);if(!m)return;m.status={none:'ordered',ordered:'delivered',delivered:'none'}[m.status]||'none';if(m.status==='ordered'&&!m.orderDate){const t=new Date();m.orderDate=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;}renderDetailMaterials();render();scheduleSave();}
 function removeMaterial(id){const m=materials.find(x=>x.id===id);if(!m||!confirm(`「${m.name}」を削除しますか？`))return;materials=materials.filter(x=>x.id!==id);renderDetailMaterials();render();scheduleSave();}
+function matAmount(m){const q=Number(m.qty),p=Number(m.price);return m.qty!==''&&m.price!==''&&m.qty!=null&&m.price!=null&&isFinite(q)&&isFinite(p)?Math.round(q*p):0;}
+function yen(n){return '¥'+Number(n||0).toLocaleString('ja-JP');}
+function updateMatAmount(){const a=matAmount({qty:document.getElementById('m-qty').value,price:document.getElementById('m-price').value});document.getElementById('m-amount').value=a?yen(a):'';}
+
+// ===== PROCESSES =====
+function procLate(p){return (p.progress||0)<100&&daysDiff(p.end)!==null&&daysDiff(p.end)<0;}
+function renderDetailProcesses(){
+  const ps=processes.filter(p=>p.site===detailSite).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+  const el=document.getElementById('sd-process');
+  if(!ps.length){el.innerHTML='<div style="padding:20px;text-align:center;color:#a0aec0;font-size:12px">工程が登録されていません</div>';return;}
+  el.innerHTML=`<table class="mini-table"><thead><tr><th>工程名</th><th>開始日</th><th>終了日</th><th>日数</th><th>担当者・業者</th><th>進捗</th><th>操作</th></tr></thead><tbody>${ps.map(p=>`<tr>
+    <td class="td-left"><span class="drawing-name">${esc(p.name)}</span>${p.memo?`<div style="font-size:10px;color:#718096">${esc(p.memo)}</div>`:''}</td>
+    <td>${fmtDate(p.start)||'－'}</td><td class="${procLate(p)?'dl-overdue':''}">${fmtDate(p.end)||'－'}</td>
+    <td>${p.start&&p.end?daysDiff(p.end)-daysDiff(p.start)+1+'日':'－'}</td>
+    <td>${esc(p.person)||'－'}</td>
+    <td style="min-width:90px"><div class="progress"><div style="width:${p.progress||0}%;background:${procLate(p)?'#fc8181':(p.progress||0)>=100?'#38a169':'#63b3ed'}"></div></div><div style="font-size:10px;margin-top:2px">${p.progress||0}%${procLate(p)?' <span class="dl-overdue">遅れ</span>':''}</div></td>
+    <td><div style="display:flex;gap:4px;justify-content:center"><button class="btn btn-edit btn-sm" onclick="openProcessModal(${p.id})">✏️</button><button class="btn btn-danger btn-sm" onclick="removeProcess(${p.id})">削除</button></div></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+function openProcessModal(id){
+  editingProcId=id;
+  const p=id!==null?processes.find(x=>x.id===id):{name:'',start:getInfo(detailSite).start||'',end:'',person:'',progress:0,memo:''};
+  if(!p)return;
+  document.getElementById('p-name').value=p.name;document.getElementById('p-start').value=p.start||'';document.getElementById('p-end').value=p.end||'';
+  document.getElementById('p-person').value=p.person||'';document.getElementById('p-progress').value=p.progress||0;document.getElementById('p-memo').value=p.memo||'';
+  document.getElementById('proc-modal-title').textContent=id!==null?'✏️ 工程を編集':'📅 工程を追加';
+  document.getElementById('proc-modal-submit').textContent=id!==null?'保存する':'追加する';
+  document.getElementById('modal-process').classList.add('active');
+}
+function submitProcess(){
+  const name=document.getElementById('p-name').value.trim(),start=document.getElementById('p-start').value,end=document.getElementById('p-end').value;
+  if(!name||!start||!end)return alert('工程名・開始日・終了日は必須です');
+  if(start>end)return alert('終了日は開始日以降の日付にしてください');
+  const data={name,start,end,person:document.getElementById('p-person').value.trim(),progress:Math.min(100,Math.max(0,parseInt(document.getElementById('p-progress').value)||0)),memo:document.getElementById('p-memo').value.trim()};
+  if(editingProcId!==null){const idx=processes.findIndex(x=>x.id===editingProcId);if(idx>=0)processes[idx]={...processes[idx],...data};}
+  else processes.push({id:nextProcId++,site:detailSite,...data});
+  closeModal('modal-process');renderDetailProcesses();render();scheduleSave();
+}
+function removeProcess(id){const p=processes.find(x=>x.id===id);if(!p||!confirm(`「${p.name}」を削除しますか？`))return;processes=processes.filter(x=>x.id!==id);renderDetailProcesses();render();scheduleSave();}
+function openProcessFromGantt(id){const p=processes.find(x=>x.id===id);if(!p)return;const i=sites.indexOf(p.site);if(i<0)return;openSiteDetail(i);switchDetailTab('process');openProcessModal(id);}
+
+// ===== GANTT =====
+function toDay(v){if(!v)return null;const d=new Date(v);if(isNaN(d))return null;d.setHours(0,0,0,0);return d;}
+function renderGantt(){
+  const el=document.getElementById('gantt');if(!el)return;
+  const fSite=document.getElementById('filter-site').value;
+  const showDw=document.getElementById('gantt-show-dw').checked,showMat=document.getElementById('gantt-show-mat').checked;
+  const px=parseFloat(document.getElementById('gantt-scale').value)||4;
+  const list=sites.filter(s=>!fSite||s===fSite);
+  // 表示範囲：すべての日付を含む月初〜月末
+  const dates=[TODAY];
+  list.forEach(s=>{
+    const info=getInfo(s);[info.start,info.end].forEach(v=>{const d=toDay(v);if(d)dates.push(d);});
+    processes.filter(p=>p.site===s).forEach(p=>[p.start,p.end].forEach(v=>{const d=toDay(v);if(d)dates.push(d);}));
+    if(showDw)drawings.filter(d=>d.site===s).forEach(d=>{const x=toDay(d.deadline);if(x)dates.push(x);});
+    if(showMat)materials.filter(m=>m.site===s).forEach(m=>{const x=toDay(m.deliveryDate);if(x)dates.push(x);});
+  });
+  const min=new Date(Math.min(...dates)),max=new Date(Math.max(...dates));
+  const from=new Date(min.getFullYear(),min.getMonth(),1),to=new Date(max.getFullYear(),max.getMonth()+1,1);
+  const dayIdx=d=>Math.round((d-from)/86400000);
+  const width=dayIdx(to)*px;
+  const X=v=>{const d=toDay(v);return d?dayIdx(d)*px:null;};
+  // 月の目盛り
+  let months='',grid='';
+  for(let m=new Date(from);m<to;m=new Date(m.getFullYear(),m.getMonth()+1,1)){
+    const l=dayIdx(m)*px,w=new Date(m.getFullYear(),m.getMonth()+1,0).getDate()*px;
+    const label=px<3?(m.getMonth()===0||+m===+from?`${m.getFullYear()}/${m.getMonth()+1}`:`${m.getMonth()+1}`):`${m.getFullYear()}/${m.getMonth()+1}`;
+    months+=`<div class="g-month" style="left:${l}px;width:${w}px">${label}</div>`;
+    grid+=`<div class="g-grid" style="left:${l}px"></div>`;
+  }
+  const todayLine=`<div class="g-today" style="left:${dayIdx(TODAY)*px}px" title="今日 ${fmtDate(TODAY)}"></div>`;
+  const track=inner=>`<div class="g-track" style="width:${width}px">${grid}${todayLine}${inner}</div>`;
+  let html=`<div class="g-row g-head"><div class="g-label">現場 / 工程</div><div class="g-track" style="width:${width}px;height:30px">${months}</div></div>`;
+  if(!list.length)html+=`<div class="g-row"><div class="g-label" style="color:#a0aec0">現場が登録されていません</div>${track('')}</div>`;
+  list.forEach(s=>{
+    const i=sites.indexOf(s),info=getInfo(s);
+    let marks='';
+    if(info.start&&info.end){const l=X(info.start),r=X(info.end)+px;marks+=`<div class="g-bar g-period" style="left:${l}px;width:${Math.max(r-l,4)}px" title="工期 ${fmtDate(info.start)}〜${fmtDate(info.end)}"></div>`;}
+    if(showDw)drawings.filter(d=>d.site===s&&d.deadline).forEach(d=>{
+      const late=!d.submitted&&d.approved!=='done'&&daysDiff(d.deadline)<0;
+      const col=d.submitted||d.approved==='done'?'#a0aec0':late?'#e53e3e':'#dd6b20';
+      marks+=`<div class="g-mark dw" style="left:${X(d.deadline)+px/2}px;background:${col}" title="図面期限 ${fmtDate(d.deadline)}：${esc(d.name)}${d.submitted?'（提出済）':late?'（期限超過）':''}"></div>`;
+    });
+    if(showMat)materials.filter(m=>m.site===s&&m.deliveryDate).forEach(m=>{
+      const late=m.status!=='delivered'&&daysDiff(m.deliveryDate)<0;
+      const col=m.status==='delivered'?'#38a169':late?'#e53e3e':'#d69e2e';
+      marks+=`<div class="g-mark" style="left:${X(m.deliveryDate)+px/2}px;color:${col}" title="材料納品 ${fmtDate(m.deliveryDate)}：${esc(m.name)}（${MAT_LABEL[m.status]}）">▲</div>`;
+    });
+    const p=periodText(info);
+    html+=`<div class="g-row g-site"><div class="g-label" style="cursor:pointer" onclick="openSiteDetail(${i})" title="クリックで詳細"><div class="g-name">🏗 ${esc(s)}</div><div class="g-sub">${p.text}${p.note?'　'+p.note:''}</div></div>${track(marks)}</div>`;
+    const ps=processes.filter(x=>x.site===s).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+    ps.forEach(x=>{
+      const l=X(x.start),r=X(x.end)+px,w=Math.max(r-l,4),pr=x.progress||0;
+      const cls=procLate(x)?'g-late':pr>=100?'g-done':'';
+      html+=`<div class="g-row"><div class="g-label"><div class="g-name">${esc(x.name)}</div><div class="g-sub">${fmtDate(x.start)}〜${fmtDate(x.end)}${x.person?'　'+esc(x.person):''}</div></div>${track(`<div class="g-bar ${cls}" style="left:${l}px;width:${w}px" onclick="openProcessFromGantt(${x.id})" title="${esc(x.name)}　${fmtDate(x.start)}〜${fmtDate(x.end)}　進捗${pr}%${procLate(x)?'（遅れ）':''}
+クリックで編集"><div class="g-fill" style="width:${pr}%"></div><span class="g-text">${pr}%</span></div>`)}</div>`;
+    });
+    if(!ps.length)html+=`<div class="g-row"><div class="g-label"><div class="g-sub" style="color:#a0aec0">工程未登録</div><div class="g-sub"><a href="#" onclick="openSiteDetail(${i});switchDetailTab('process');return false">＋ 工程を追加</a></div></div>${track('')}</div>`;
+  });
+  el.innerHTML=html;
+  // 初回は今日付近までスクロール
+  const wrap=el.parentElement;
+  if(!wrap.dataset.scrolled){wrap.scrollLeft=Math.max(0,dayIdx(TODAY)*px-300);wrap.dataset.scrolled='1';}
+}
+
 function csvCell(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
 function exportMaterialsCSV(site){
   const list=site?materials.filter(m=>m.site===site):materials;
   if(!list.length)return alert('出力する材料がありません');
-  const h=['現場名','材料名','規格・仕様','数量','単位','発注先','発注日','納品予定日','状況','備考'];
-  const rows=list.map(m=>[m.site,m.name,m.spec,m.qty,m.unit,m.supplier,m.orderDate,m.deliveryDate,MAT_LABEL[m.status]||'',m.memo].map(csvCell).join(','));
+  const h=['現場名','材料名','規格・仕様','数量','単位','単価','金額','発注先','発注日','納品予定日','状況','備考'];
+  const rows=list.map(m=>[m.site,m.name,m.spec,m.qty,m.unit,m.price,matAmount(m)||'',m.supplier,m.orderDate,m.deliveryDate,MAT_LABEL[m.status]||'',m.memo].map(csvCell).join(','));
   const csv='﻿'+[h.join(','),...rows].join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=site?`材料一覧_${site}.csv`:'材料一覧.csv';a.click();
 }
