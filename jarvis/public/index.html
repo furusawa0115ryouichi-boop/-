@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S. OS</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-mode="standby">
+<div class="scanlines"></div>
+
+<header class="topbar">
+  <div class="brand">J·A·R·V·I·S <span class="os">OS</span></div>
+  <div class="topstatus"><span class="dot"></span><span id="statusText">STANDBY</span></div>
+  <div class="topright"><span id="clockTop">--:--:--</span></div>
+</header>
+
+<main class="hud">
+  <!-- 左: システム情報 -->
+  <aside class="panel left">
+    <h2>SYSTEM</h2>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="date" id="date">----.--.--</div>
+    <dl class="kv">
+      <dt>OPERATOR</dt><dd id="kvUser">-</dd>
+      <dt>MODEL</dt><dd id="kvModel">-</dd>
+      <dt>PERMISSION</dt><dd id="kvPerm">-</dd>
+      <dt>SESSION</dt><dd id="kvSession">-</dd>
+      <dt>WORKDIR</dt><dd id="kvCwd" class="path">-</dd>
+    </dl>
+    <h2>METRICS</h2>
+    <dl class="kv">
+      <dt>TASKS</dt><dd id="mTasks">0</dd>
+      <dt>TOOL CALLS</dt><dd id="mTools">0</dd>
+      <dt>LAST TIME</dt><dd id="mTime">-</dd>
+      <dt>COST (USD)</dt><dd id="mCost">0.0000</dd>
+    </dl>
+    <h2>VOICE</h2>
+    <label class="field">声
+      <select id="voiceSelect"></select>
+    </label>
+    <label class="field">速さ <span id="rateVal">1.1</span>
+      <input type="range" id="rate" min="0.7" max="1.6" step="0.1" value="1.1">
+    </label>
+    <button class="ghost" id="resetBtn" title="会話の記憶をリセットして新しいセッションを始めます">NEW SESSION</button>
+  </aside>
+
+  <!-- 中央: リアクター + 会話ログ -->
+  <section class="center">
+    <div class="reactor-wrap">
+      <svg class="reactor" viewBox="0 0 400 400" aria-hidden="true">
+        <defs>
+          <radialGradient id="core" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#e8ffff"/>
+            <stop offset="35%" stop-color="#5ef2ff"/>
+            <stop offset="70%" stop-color="#0a8fb0" stop-opacity=".6"/>
+            <stop offset="100%" stop-color="#003a4d" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <g class="ring r1"><circle cx="200" cy="200" r="190" class="thin dash1"/></g>
+        <g class="ring r2"><circle cx="200" cy="200" r="168" class="ticks"/></g>
+        <g class="ring r3"><circle cx="200" cy="200" r="145" class="arc"/></g>
+        <g class="ring r4"><circle cx="200" cy="200" r="122" class="dash2"/></g>
+        <g class="ring r5"><circle cx="200" cy="200" r="100" class="thin"/></g>
+        <circle cx="200" cy="200" r="80" fill="url(#core)" class="core"/>
+        <polygon class="hex" points="200,152 241.6,176 241.6,224 200,248 158.4,224 158.4,176"/>
+      </svg>
+      <div class="reactor-label" id="reactorLabel">STANDBY</div>
+    </div>
+
+    <div class="log" id="log">
+      <div class="msg sys">システム起動完了。マイクボタンを押して話しかけるか、下の欄に指示を入力してください。</div>
+    </div>
+
+    <form class="inputbar" id="form">
+      <button type="button" class="mic" id="micBtn" title="音声入力 (Ctrl+/)">
+        <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+      </button>
+      <textarea id="input" rows="1" placeholder="JARVIS への指示…（Enter で送信 / Shift+Enter で改行）"></textarea>
+      <button type="submit" class="send" id="sendBtn">SEND</button>
+      <button type="button" class="stop" id="stopBtn" title="中断 (Esc)">STOP</button>
+    </form>
+    <div class="toggles">
+      <label><input type="checkbox" id="tSpeak" checked> 読み上げ</label>
+      <label><input type="checkbox" id="tAuto" checked> 話し終えたら自動送信</label>
+      <label><input type="checkbox" id="tHands"> 会話モード（返事のあと自動で聞き取り）</label>
+    </div>
+  </section>
+
+  <!-- 右: 作業アクティビティ -->
+  <aside class="panel right">
+    <h2>ACTIVITY</h2>
+    <ul class="activity" id="activity"></ul>
+  </aside>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

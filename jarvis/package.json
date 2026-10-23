@@ -1,0 +1,12 @@
+{
+  "name": "jarvis",
+  "version": "1.0.0",
+  "description": "Claude Code と音声で会話しながら仕事を進める JARVIS 風 HUD",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
